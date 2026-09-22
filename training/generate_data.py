@@ -89,6 +89,34 @@ STACKS = ["a Python FastAPI service", "a TypeScript React app", "a Go CLI tool",
           "a Ruby on Rails app", "a Java Spring service", "a Next.js frontend",
           "a data pipeline in PySpark", "an Elixir Phoenix app", "a SwiftUI iOS app"]
 
+SEEDED_PROMPT = """You are generating training data for a model that decides which \
+AI model should handle a delegated coding task.
+
+Below are REAL examples of briefs that a coding orchestrator actually wrote when \
+delegating to a subagent. Study their voice, structure, length and messiness:
+
+{examples}
+
+Now write {n} DIFFERENT examples in that same style -- not the style of a tidy \
+template. Real briefs vary: some open with repo context, some dive straight in, \
+some ramble, some are terse. Match that variety rather than a fixed \
+Repo/File/Context/Task/Acceptance layout.
+
+Every example must be for {stack} and must be labelled "{tier}":
+{tier_desc}
+
+Every example must include: {payload_desc}.
+
+CRITICAL: the amount of pasted material must NOT reflect how hard the task is. \
+In this batch the task is "{tier}" and the payload is "{payload}" -- keep both \
+exactly as specified even when that feels mismatched. A trivial lookup wrapped \
+in a 200-line log dump is a deliberately wanted example.
+
+Return ONLY a JSON array, no markdown fence, no commentary:
+[{{"brief": "<the full delegated prompt, payload included, \\n for newlines>", \
+"tier": "{tier}"}}]
+"""
+
 PROMPT = """You are generating training data for a model that decides which AI \
 model should handle a delegated coding task.
 
@@ -181,6 +209,34 @@ def list_models(base_url: str, api_key: str, timeout: float) -> int:
     return 0
 
 
+def load_seeds() -> Dict[str, List[str]]:
+    """Real briefs to few-shot the generator with, keyed by tier.
+
+    Only the TRAINING split of the real corpus is ever used. The held-out cases
+    must never reach the generator: briefs written in imitation of a test case
+    would make the final score measure memorisation instead of transfer, and the
+    whole point of keeping real data as the test set is that it is independent.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "eval_delegated", os.path.join(os.path.dirname(HERE), "eval_delegated.py"))
+    ed = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ed)
+
+    corpus = json.load(open(os.path.join(os.path.dirname(HERE), "delegated_corpus.json")))
+    train, test = ed._split(corpus)
+    held_out = {c["request"] for c in test}
+    assert not (held_out & {c["request"] for c in train}), "split leaked"
+
+    tier_kind = {"haiku": "lookup", "sonnet": "edit", "opus": "design"}
+    seeds: Dict[str, List[str]] = {"lookup": [], "edit": [], "design": []}
+    for c in train:
+        seeds[tier_kind[c["want"]]].append(c["delegated"])
+    print("seeding from %d real briefs (%s); %d held-out cases withheld"
+          % (len(train), {k: len(v) for k, v in seeds.items()}, len(test)), file=sys.stderr)
+    return seeds
+
+
 def load_seen() -> set:
     if not os.path.exists(OUT):
         return set()
@@ -202,6 +258,10 @@ def main(argv=None) -> int:
     ap.add_argument("--model", default=os.environ.get("GEN_MODEL"))
     ap.add_argument("--n", type=int, default=200, help="target number of new briefs")
     ap.add_argument("--per-call", type=int, default=5)
+    ap.add_argument("--seed-from-real", action="store_true",
+                    help="few-shot the generator with REAL briefs from the training "
+                         "split, so it imitates the real distribution instead of "
+                         "inventing a tidy one. Held-out cases are never used.")
     ap.add_argument("--max-tokens", type=int, default=4000,
                     help="lower this if a provider rate-limits on tokens/minute")
     ap.add_argument("--timeout", type=float, default=180.0)
@@ -227,6 +287,7 @@ def main(argv=None) -> int:
     global OUT
     if args.out:
         OUT = args.out
+    seeds = load_seeds() if args.seed_from_real else {}
     seen = load_seen()
     print("%d brief(s) already on disk" % len(seen), file=sys.stderr)
     rng = random.Random()
@@ -237,9 +298,22 @@ def main(argv=None) -> int:
         while written < args.n:
             tier = rng.choice(list(TIERS))
             payload, payload_desc = rng.choice(PAYLOADS)
-            prompt = PROMPT.format(n=args.per_call, stack=rng.choice(STACKS),
-                                   tier=tier, tier_desc=TIERS[tier],
-                                   payload=payload, payload_desc=payload_desc)
+            if seeds:
+                # Show same-tier exemplars: the generator should copy how a real
+                # brief of THIS kind reads, not just the house style in general.
+                pool = seeds.get(tier) or [b for v in seeds.values() for b in v]
+                chosen = rng.sample(pool, min(2, len(pool)))
+                examples = "\n\n".join(
+                    "--- REAL EXAMPLE %d ---\n%s" % (i + 1, b[:1500])
+                    for i, b in enumerate(chosen))
+                prompt = SEEDED_PROMPT.format(
+                    examples=examples, n=args.per_call, stack=rng.choice(STACKS),
+                    tier=tier, tier_desc=TIERS[tier],
+                    payload=payload, payload_desc=payload_desc)
+            else:
+                prompt = PROMPT.format(n=args.per_call, stack=rng.choice(STACKS),
+                                       tier=tier, tier_desc=TIERS[tier],
+                                       payload=payload, payload_desc=payload_desc)
             try:
                 rows = parse(post(base_url, args.api_key, args.model, prompt,
                                   args.timeout, args.max_tokens))

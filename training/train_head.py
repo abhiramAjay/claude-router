@@ -47,9 +47,9 @@ KIND_TIER = {"lookup": "haiku", "edit": "sonnet", "design": "opus"}
 CLASSES = ["lookup", "edit", "design"]
 
 
-def load_training() -> Tuple[List[str], List[str], List[str], List[str]]:
+def load_training(pattern: str = None) -> Tuple[List[str], List[str], List[str], List[str]]:
     import glob
-    files = sorted(glob.glob(BRIEFS_GLOB))
+    files = sorted(glob.glob(pattern or BRIEFS_GLOB))
     if not files:
         sys.exit("no training data. Run training/generate_data.py first.")
     texts, labels, payloads, sources, seen = [], [], [], [], set()
@@ -101,13 +101,27 @@ def main(argv=None) -> int:
     ap.add_argument("--curve", action="store_true",
                     help="accuracy vs training-set size -- says whether more data would help")
     ap.add_argument("--C", type=float, default=0.3, help="inverse regularisation strength")
+    ap.add_argument("--data", default=None,
+                    help="glob for training files (default training/briefs*.jsonl). "
+                         "Point at training/seeded/*.jsonl to score the seeded run "
+                         "against the unseeded one at matched n.")
+    ap.add_argument("--n", type=int, default=None,
+                    help="cap the training set, so two datasets can be compared "
+                         "at the same size rather than confounding data with volume")
     args = ap.parse_args(argv)
 
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import cross_val_score
     import joblib
 
-    texts, labels, payloads, sources = load_training()
+    texts, labels, payloads, sources = load_training(args.data)
+    if args.n and args.n < len(texts):
+        rng = np.random.RandomState(0)
+        idx = rng.permutation(len(texts))[:args.n]
+        texts = [texts[i] for i in idx]
+        labels = [labels[i] for i in idx]
+        payloads = [payloads[i] for i in idx]
+        sources = [sources[i] for i in idx]
     if len(texts) < 60:
         print("only %d training briefs -- generate more before trusting any of this"
               % len(texts), file=sys.stderr)

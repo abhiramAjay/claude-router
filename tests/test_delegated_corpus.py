@@ -50,3 +50,28 @@ def test_delegated_prompts_are_mostly_paraphrased(corpus):
     ratio = (sum(len(c["delegated"]) for c in corpus)
              / sum(len(c["request"]) for c in corpus))
     assert ratio > 3, "expected delegated briefs to be several times longer, got %.1fx" % ratio
+
+
+def test_seeding_never_exposes_the_held_out_cases(corpus):
+    """The generator may only see the training split.
+
+    A brief written in imitation of a test case turns the final score into a
+    measure of memorisation. The whole value of the real corpus is that it is
+    independent of everything upstream of it, so this is the guard that keeps
+    it that way.
+    """
+    import importlib.util
+    import os
+    spec = importlib.util.spec_from_file_location(
+        "generate_data", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                      "training", "generate_data.py"))
+    gd = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gd)
+
+    seeds = gd.load_seeds()
+    seeded = {b for v in seeds.values() for b in v}
+    _, test = eval_delegated._split(corpus)
+    leaked = seeded & {c["delegated"] for c in test}
+    assert not leaked, "%d held-out brief(s) reached the generator" % len(leaked)
+    assert seeded, "no seeds produced"
+    assert len(seeded) == len(corpus) - len(test)
