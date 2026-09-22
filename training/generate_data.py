@@ -45,7 +45,13 @@ from typing import Any, Dict, List
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "briefs.jsonl")
 
+# Some providers sit behind a WAF that 403s urllib's default User-Agent
+# ("Python-urllib/3.x") while the identical request from curl succeeds.
+# Measured against Groq: 403 on /models until this header is set.
+UA = "claude-router-traindata/0.1"
+
 PROVIDERS = {
+    "openai":     "https://api.openai.com/v1",
     "groq":       "https://api.groq.com/openai/v1",
     "openrouter": "https://openrouter.ai/api/v1",
     "gemini":     "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -107,16 +113,17 @@ Return ONLY a JSON array, no markdown fence, no commentary:
 """
 
 
-def post(base_url: str, api_key: str, model: str, prompt: str, timeout: float) -> str:
+def post(base_url: str, api_key: str, model: str, prompt: str, timeout: float,
+         max_tokens: int = 4000) -> str:
     body = json.dumps({
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 1.0,
-        "max_tokens": 8000,
+        "max_tokens": max_tokens,
     }).encode()
     req = urllib.request.Request(
         base_url.rstrip("/") + "/chat/completions", data=body,
-        headers={"Content-Type": "application/json",
+        headers={"Content-Type": "application/json", "User-Agent": UA,
                  "Authorization": "Bearer " + api_key})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read())["choices"][0]["message"]["content"]
@@ -150,8 +157,9 @@ def list_models(base_url: str, api_key: str, timeout: float) -> int:
     written may already be retired -- so ask the provider rather than trusting
     any list, including the examples in the docstring above.
     """
-    req = urllib.request.Request(base_url.rstrip("/") + "/models",
-                                 headers={"Authorization": "Bearer " + api_key})
+    req = urllib.request.Request(
+        base_url.rstrip("/") + "/models",
+        headers={"Authorization": "Bearer " + api_key, "User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read())
@@ -162,7 +170,8 @@ def list_models(base_url: str, api_key: str, timeout: float) -> int:
     except (urllib.error.URLError, OSError, ValueError) as e:
         print("could not reach %s (%s)" % (base_url, type(e).__name__), file=sys.stderr)
         return 1
-    ids = sorted(m.get("id", "?") for m in (data.get("data") or data.get("models") or []))
+    ids = sorted(str(m.get("id", "?")).split("models/")[-1]
+                 for m in (data.get("data") or data.get("models") or []))
     if not ids:
         print("no models listed; raw response: %s" % json.dumps(data)[:300], file=sys.stderr)
         return 1
@@ -192,11 +201,18 @@ def main(argv=None) -> int:
     ap.add_argument("--api-key", default=os.environ.get("GEN_API_KEY"))
     ap.add_argument("--model", default=os.environ.get("GEN_MODEL"))
     ap.add_argument("--n", type=int, default=200, help="target number of new briefs")
-    ap.add_argument("--per-call", type=int, default=6)
+    ap.add_argument("--per-call", type=int, default=5)
+    ap.add_argument("--max-tokens", type=int, default=4000,
+                    help="lower this if a provider rate-limits on tokens/minute")
     ap.add_argument("--timeout", type=float, default=180.0)
     ap.add_argument("--sleep", type=float, default=1.0, help="pause between calls (rate limits)")
     ap.add_argument("--list-models", action="store_true",
                     help="print the model ids this key can use, then exit")
+    ap.add_argument("--out", default=None,
+                    help="output file (default training/briefs.jsonl). Give each "
+                         "provider its own when running them concurrently: a 2 KB "
+                         "append is not atomic, so sharing one file can interleave "
+                         "lines. train_head.py globs training/briefs*.jsonl.")
     args = ap.parse_args(argv)
 
     base_url = PROVIDERS[args.provider] if args.provider else args.base_url
@@ -208,6 +224,9 @@ def main(argv=None) -> int:
         ap.error("need --provider/--base-url, --api-key and --model "
                  "(or GEN_BASE_URL / GEN_API_KEY / GEN_MODEL)")
 
+    global OUT
+    if args.out:
+        OUT = args.out
     seen = load_seen()
     print("%d brief(s) already on disk" % len(seen), file=sys.stderr)
     rng = random.Random()
@@ -222,7 +241,45 @@ def main(argv=None) -> int:
                                    tier=tier, tier_desc=TIERS[tier],
                                    payload=payload, payload_desc=payload_desc)
             try:
-                rows = parse(post(base_url, args.api_key, args.model, prompt, args.timeout))
+                rows = parse(post(base_url, args.api_key, args.model, prompt,
+                                  args.timeout, args.max_tokens))
+            except urllib.error.HTTPError as e:
+                fails += 1
+                # Free tiers rate-limit aggressively and most of them say for how
+                # long. Honouring Retry-After beats exponential guessing: it both
+                # backs off enough and stops sleeping longer than necessary.
+                wait = 0.0
+                try:
+                    wait = float(e.headers.get("retry-after") or 0)
+                except (TypeError, ValueError):
+                    wait = 0.0
+                if not wait:
+                    wait = min(2 ** min(fails, 5), 30)
+                # 413 is Groq's way of saying the request would exceed the
+                # remaining tokens-per-minute allowance -- the same request
+                # succeeds once the window rolls over, so it is a rate limit
+                # wearing a different status code, not a malformed request.
+                # 520-527 are Cloudflare's own edge errors (524 = origin timed
+                # out). They say nothing about the request, only that a slow
+                # model outran the proxy, so retrying with fewer briefs per call
+                # is the right response.
+                if e.code not in (408, 409, 413, 429, 500, 502, 503, 529) and not (520 <= e.code <= 527):
+                    # The body is where providers put the actionable part -- the
+                    # replacement model id for a retired one, or "no credits".
+                    # Printing only the status hides it.
+                    try:
+                        detail = e.read().decode("utf-8", "replace")[:400]
+                    except Exception:
+                        detail = ""
+                    print("  %s %s -- not retryable, stopping\n  %s"
+                          % (e.code, e.reason, detail), file=sys.stderr)
+                    return 1
+                print("  %s, waiting %.0fs" % (e.code, wait), file=sys.stderr)
+                if fails > 40 and not written:
+                    print("giving up: nothing is coming back", file=sys.stderr)
+                    return 1
+                time.sleep(wait)
+                continue
             except (urllib.error.URLError, OSError, KeyError, ValueError) as e:
                 fails += 1
                 print("  call failed (%s: %s)" % (type(e).__name__, str(e)[:70]), file=sys.stderr)

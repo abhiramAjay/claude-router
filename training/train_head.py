@@ -37,7 +37,8 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-BRIEFS = os.path.join(HERE, "briefs.jsonl")
+# One file per provider (see generate_data.py --out); merged here.
+BRIEFS_GLOB = os.path.join(HERE, "briefs*.jsonl")
 MODEL_OUT = os.path.join(ROOT, "claude_router", "routing_head.joblib")
 REAL = os.path.join(ROOT, "delegated_corpus.json")
 
@@ -46,21 +47,29 @@ KIND_TIER = {"lookup": "haiku", "edit": "sonnet", "design": "opus"}
 CLASSES = ["lookup", "edit", "design"]
 
 
-def load_training() -> Tuple[List[str], List[str], List[str]]:
-    if not os.path.exists(BRIEFS):
+def load_training() -> Tuple[List[str], List[str], List[str], List[str]]:
+    import glob
+    files = sorted(glob.glob(BRIEFS_GLOB))
+    if not files:
         sys.exit("no training data. Run training/generate_data.py first.")
-    texts, labels, payloads = [], [], []
-    with open(BRIEFS) as f:
-        for line in f:
-            try:
-                r = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if r.get("brief") and r.get("tier") in KIND_TIER:
+    texts, labels, payloads, sources, seen = [], [], [], [], set()
+    for path in files:
+        with open(path) as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue          # a torn line from a concurrent writer
+                if not (r.get("brief") and r.get("tier") in KIND_TIER):
+                    continue
+                if r["brief"] in seen:      # same brief from two providers
+                    continue
+                seen.add(r["brief"])
                 texts.append(r["brief"])
                 labels.append(r["tier"])
                 payloads.append(r.get("payload", "?"))
-    return texts, labels, payloads
+                sources.append(r.get("source", "?"))
+    return texts, labels, payloads, sources
 
 
 def load_real() -> Tuple[List[str], List[str]]:
@@ -98,13 +107,14 @@ def main(argv=None) -> int:
     from sklearn.model_selection import cross_val_score
     import joblib
 
-    texts, labels, payloads = load_training()
+    texts, labels, payloads, sources = load_training()
     if len(texts) < 60:
         print("only %d training briefs -- generate more before trusting any of this"
               % len(texts), file=sys.stderr)
     import collections
     print("training data: %d briefs  %s" % (len(texts), dict(collections.Counter(labels))))
-    print("payload mix:   %s\n" % dict(collections.Counter(payloads)))
+    print("payload mix:   %s" % dict(collections.Counter(payloads)))
+    print("sources:       %s\n" % dict(collections.Counter(sources)))
 
     emb = embedder()
     X = emb(texts)
