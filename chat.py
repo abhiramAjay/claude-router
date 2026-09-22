@@ -1,8 +1,8 @@
 """A terminal chat REPL that picks a Claude model per message.
 
-    pip install ~/claude-router anthropic
+    pip install ~/ideaProjects/claude-router anthropic
     export ANTHROPIC_API_KEY=sk-ant-...
-    python ~/claude-router/chat.py
+    python ~/ideaProjects/claude-router/chat.py
 
 This is a chat client, not Claude Code -- no file editing, no bash, no tools.
 It exists to show per-message routing against a real conversation and a real bill.

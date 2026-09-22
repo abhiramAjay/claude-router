@@ -1,6 +1,6 @@
 """End-to-end: route via the sidecar, then call the chosen Claude model.
 
-    pip install ~/claude-router anthropic
+    pip install ~/ideaProjects/claude-router anthropic
     python example.py "your prompt here"
 
 Needs credentials: an exported ANTHROPIC_API_KEY, or `ant auth login` (the

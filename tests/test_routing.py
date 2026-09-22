@@ -1,7 +1,7 @@
 """Labeled cases for ClaudeRouter. Re-run after touching cuts or the guard.
 
 Runs the classifier in-process (not through the sidecar), so it needs the
-[server] extra:  ~/.venvs/laya/bin/python ~/claude-router/eval_router.py
+[server] extra:  pytest tests/test_routing.py -m slow
 """
 import time
 
