@@ -9,3 +9,4 @@ venv/
 .DS_Store
 .idea/
 claude_router/routing_head.joblib
+training/logs/
