@@ -31,7 +31,7 @@ TIERS = {
 
 # laya `difficulty` is the expected value over four ordered levels (0..3), so it
 # is continuous, not a class. These cuts come from the labeled cases in
-# eval_router.py -- re-run that after changing them.
+# tests/test_routing.py -- re-run that after changing them.
 DIFFICULTY_CUTS = {"sonnet": 1.20, "opus": 1.95}
 
 # Domains whose cheap-tier cut is raised: laya scores trivia and arithmetic
