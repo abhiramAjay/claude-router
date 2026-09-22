@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.claude-router.laya-routerd</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/dev/.venvs/laya/bin/laya-routerd</string>
+    <string>--host</string><string>127.0.0.1</string>
+    <string>--port</string><string>8129</string>
+  </array>
+
+  <!-- Start at login and restart if it dies. The ~20s model load happens once,
+       in the background, before you ever open a terminal. -->
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+
+  <key>StandardOutPath</key><string>/Users/dev/Library/Logs/laya-routerd.log</string>
+  <key>StandardErrorPath</key><string>/Users/dev/Library/Logs/laya-routerd.log</string>
+
+  <!-- Keeps the HF cache lookup off the network once weights are downloaded. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HF_HUB_OFFLINE</key><string>1</string>
+    <key>TOKENIZERS_PARALLELISM</key><string>false</string>
+  </dict>
+
+  <!-- Routing is a background nicety; don't let it compete with your real work. -->
+  <key>ProcessType</key><string>Background</string>
+  <key>Nice</key><integer>5</integer>
+</dict>
+</plist>

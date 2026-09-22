@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-router"
+version = "0.1.0"
+description = "Route each prompt to a Claude model by complexity, using laya as a local classifier"
+requires-python = ">=3.9"
+dependencies = []          # the client is standard library only -- on purpose
+
+[project.optional-dependencies]
+# Only the sidecar host needs these. Projects install the bare package.
+server = ["laya>=0.3.5"]
+# For running example.py / calling the API from the same venv.
+api = ["anthropic>=1.0"]
+# Client-side tests need no torch, so dev stays light.
+dev = ["pytest>=7"]
+
+[project.scripts]
+laya-routerd = "claude_router.server:main"
+
+[tool.setuptools]
+packages = ["claude_router"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: loads the laya checkpoint (~20s); needs the [server] extra"]
+addopts = "-q"
