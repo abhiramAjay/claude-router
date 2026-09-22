@@ -4,13 +4,13 @@ Works against any OpenAI-compatible chat endpoint, so the free tiers all work:
 
     export GEN_BASE_URL=https://api.groq.com/openai/v1
     export GEN_API_KEY=gsk_...
-    export GEN_MODEL=llama-3.3-70b-versatile
+    export GEN_MODEL=<id from --list-models>
     python training/generate_data.py --n 1000
 
-    # presets save you the base_url lookup
-    python training/generate_data.py --provider groq      --model llama-3.3-70b-versatile --n 400
-    python training/generate_data.py --provider openrouter --model deepseek/deepseek-chat --n 400
-    python training/generate_data.py --provider gemini    --model gemini-2.0-flash        --n 400
+    # presets save you the base_url lookup; ask the provider which models exist
+    # rather than trusting a hardcoded name, because they churn
+    python training/generate_data.py --provider groq --api-key ... --list-models
+    python training/generate_data.py --provider groq --api-key ... --model <id> --n 400
 
 Standard library only -- no SDK for any provider, since the point is to mix
 several free ones. Output is appended to `training/briefs.jsonl`, deduplicated
@@ -143,6 +143,35 @@ def parse(text: str) -> List[Dict[str, Any]]:
     return out
 
 
+def list_models(base_url: str, api_key: str, timeout: float) -> int:
+    """Print the model ids this key can actually use.
+
+    Model names churn fast -- a name that was current when this file was
+    written may already be retired -- so ask the provider rather than trusting
+    any list, including the examples in the docstring above.
+    """
+    req = urllib.request.Request(base_url.rstrip("/") + "/models",
+                                 headers={"Authorization": "Bearer " + api_key})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            data = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        print("%s %s -- is the key right, and does this provider expose /models?"
+              % (e.code, e.reason), file=sys.stderr)
+        return 1
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        print("could not reach %s (%s)" % (base_url, type(e).__name__), file=sys.stderr)
+        return 1
+    ids = sorted(m.get("id", "?") for m in (data.get("data") or data.get("models") or []))
+    if not ids:
+        print("no models listed; raw response: %s" % json.dumps(data)[:300], file=sys.stderr)
+        return 1
+    for i in ids:
+        print(i)
+    print("\n%d model(s). Pick one and pass it as --model." % len(ids), file=sys.stderr)
+    return 0
+
+
 def load_seen() -> set:
     if not os.path.exists(OUT):
         return set()
@@ -166,9 +195,15 @@ def main(argv=None) -> int:
     ap.add_argument("--per-call", type=int, default=6)
     ap.add_argument("--timeout", type=float, default=180.0)
     ap.add_argument("--sleep", type=float, default=1.0, help="pause between calls (rate limits)")
+    ap.add_argument("--list-models", action="store_true",
+                    help="print the model ids this key can use, then exit")
     args = ap.parse_args(argv)
 
     base_url = PROVIDERS[args.provider] if args.provider else args.base_url
+    if args.list_models:
+        if not (base_url and args.api_key):
+            ap.error("--list-models needs --provider/--base-url and --api-key")
+        return list_models(base_url, args.api_key, args.timeout)
     if not (base_url and args.api_key and args.model):
         ap.error("need --provider/--base-url, --api-key and --model "
                  "(or GEN_BASE_URL / GEN_API_KEY / GEN_MODEL)")
