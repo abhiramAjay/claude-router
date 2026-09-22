@@ -1,0 +1,242 @@
+[
+  {
+    "request": "Find out which port the sidecar listens on by default.",
+    "want": "haiku",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, find out which port the \"sidecar\" component listens on by default. Search the codebase (config files, source code, docs) for a sidecar process/server definition and its default port number. Report back the port number and the file/line where it's defined.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "List the .py files in the claude_router package.",
+    "want": "haiku",
+    "delegated": "List the .py files contained in the claude_router/ package directory (top-level, and any subdirectories) in the repo at /Users/dev/IdeaProjects/claude-router. Just report the file paths, one per line, with no additional analysis.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Tell me the name of the regex constant that handles high-stakes escalation.",
+    "want": "haiku",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, find the name of the regex constant that handles \"high-stakes escalation\" (routing logic that escalates prompts to a more capable model based on high-stakes signals, e.g. in claude_router/agents.py or similar routing files). Search the codebase for regex patterns related to escalation, high-stakes, urgency, or complexity routing. Report just the constant name and the file/line where it's defined.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Find every place RouterClient.route is called in this repo.",
+    "want": "haiku",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, find every place where `RouterClient.route` (a method called `.route(` on a `RouterClient` instance, or `RouterClient.route` directly) is called. Search all source files (.py etc.), including tests. For each call site, report the file path, line number, and the surrounding line(s) of code. Report results concisely.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Read the docstring of messages_kwargs and tell me what it says.",
+    "want": "haiku",
+    "delegated": "Search the codebase at /Users/dev/IdeaProjects/claude-router for a symbol named \"messages_kwargs\" (likely a function, method, or variable). Find its docstring and report back the exact docstring text verbatim.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "What version of laya does the server extra require?",
+    "want": "haiku",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, look at pyproject.toml (and any related config) to find the \"server\" optional-dependencies extra, and report what version of the \"laya\" package it requires (the exact version specifier string).",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "What model does the client fall back to when the sidecar is down?",
+    "want": "haiku",
+    "delegated": "In this repo (/Users/dev/IdeaProjects/claude-router), the user is asking: \"What model does the client fall back to when the sidecar is down?\"\n\nThis relates to claude_router/router.py and possibly claude_router/agents.py, which route prompts to Claude models. Look for code handling a \"sidecar\" service, connection failures/timeouts to it, and any fallback model logic (e.g., a default/fallback model constant used when the sidecar can't be reached).\n\nInvestigate the codebase (router.py, agents.py, and any related config/tests) and report: which model is used as the fallback when the sidecar is unreachable, and cite the file/line where this is defined. Keep the report concise.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "List the environment variables the client reads.",
+    "want": "haiku",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, find and list all environment variables that the client code reads (e.g. via os.environ, os.getenv, etc.). Report the variable names, which file(s)/line(s) read them, and what they're used for.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "What is the launchd label for the daemon?",
+    "want": "haiku",
+    "delegated": "The user asked: \"What is the launchd label for the daemon?\" in the context of the claude-router project (working directory /Users/dev/IdeaProjects/claude-router). There is no prior conversation establishing which daemon is meant. Investigate the repo (and any relevant plist files, launchd configs, or documentation, e.g. in ~/Library/LaunchAgents, ~/Library/LaunchDaemons, or within the project) to determine the launchd label for whatever daemon is relevant to this project. Report back the label you find, or state clearly if none exists / it's ambiguous which daemon is meant.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "How many labelled cases are in tests/test_routing.py?",
+    "want": "haiku",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, open tests/test_routing.py and count how many labelled test cases it contains (e.g., parametrized cases, dict/list entries mapping an input to an expected label, or however \"cases\" are structured in this file). Report the exact count and briefly how you counted (e.g., \"N entries in a parametrize list named X\").",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "What are the three tier names in the TIERS table?",
+    "want": "haiku",
+    "delegated": "In the claude-router repo at /Users/dev/IdeaProjects/claude-router, find the TIERS table (likely in claude_router/router.py) and report the three tier names it defines.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Find where the default HTTP timeout is set in client.py.",
+    "want": "haiku",
+    "delegated": "Find where the default HTTP timeout is set in client.py in this repository (/Users/dev/IdeaProjects/claude-router). Report the file path and line number/code snippet.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Explain how the high-stakes guard interacts with the difficulty cuts.",
+    "want": "sonnet",
+    "delegated": "In the claude-router repo (/Users/dev/IdeaProjects/claude-router), likely in claude_router/agents.py (a router that routes prompts to Claude models by complexity), explain how the \"high-stakes guard\" interacts with the \"difficulty cuts\" (i.e., the difficulty thresholds/cutoffs used to pick a model). Read the relevant source file(s) (claude_router/agents.py and any related routing/complexity logic, plus tests/test_agents.py for expected behavior) and explain:\n1. What the high-stakes guard is/does (e.g., does it override model selection for certain flagged prompts regardless of computed difficulty?).\n2. What the difficulty cuts are (the thresholds that map a computed difficulty/complexity score to a model tier).\n3. How the two interact \u2014 e.g., does the high-stakes guard short-circuit before difficulty cuts are applied, does it raise the minimum model tier after cuts are applied, or does it only apply within a specific difficulty band?\n\nReport back a clear, concise explanation (with file/line references) suitable to relay directly to the user as the final answer.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Add a --timeout flag to laya-routerd and wire it through to the server.",
+    "want": "sonnet",
+    "delegated": "Add a --timeout flag to laya-routerd and wire it through to the server.\n\nContext: this is the claude-router repo (/Users/dev/IdeaProjects/claude-router), a Python project (pyproject.toml present). Find the laya-routerd CLI entrypoint (likely in claude_router/ package, could be a console_script defined in pyproject.toml or a __main__.py / cli.py). Find where the server is constructed/started (look for something like a Server class, an HTTP server, or similar in the claude_router package).\n\nTask:\n1. Locate the CLI argument parsing for laya-routerd (grep for \"laya-routerd\" in pyproject.toml to find the entry point, then find the corresponding module).\n2. Add a `--timeout` flag (float, seconds) with a sensible default matching any existing hardcoded timeout value if one exists in the server code, otherwise a reasonable default like 30.0.\n3. Wire the parsed timeout value through to wherever the server is instantiated/run, so it actually controls request/connection timeout behavior there.\n4. Follow existing code style/conventions in the repo (argparse vs click, etc.) \u2014 do not introduce new dependencies.\n5. Keep the change minimal and focused \u2014 no unrelated refactoring, no new abstractions.\n\nAfter making the change, run any relevant existing tests (e.g., pytest) to make sure nothing broke. Report back concisely what files you changed and how the flag is wired through.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Why would route() return NaN difficulty? Track down the cause.",
+    "want": "sonnet",
+    "delegated": "In this repo (/Users/dev/IdeaProjects/claude-router), the function `route()` sometimes returns a NaN difficulty score. Investigate the cause.\n\nContext: this is a Python project (claude_router package) that routes prompts to Claude models based on a computed \"complexity\"/\"difficulty\" score. Relevant files likely include claude_router/agents.py (new, untracked) and other modules in claude_router/ that compute a difficulty/complexity metric used by route(). There's also tests/test_agents.py and eval_delegated.py / spike_subagents.py in the repo root that may exercise this.\n\nPlease:\n1. Find the definition of `route()` and trace how it computes the difficulty/complexity value (e.g. any division, averaging, normalization, or weighted sum operations).\n2. Identify what input condition(s) would produce NaN (e.g. division by zero such as when a list/corpus is empty, 0/0, log(0), or missing/None values propagating through arithmetic, or a mean() over an empty sequence).\n3. Report back the exact file and line number(s) responsible, the root cause, and a concise explanation of a concrete input that triggers it.\n\nDo not make any code edits \u2014 this is investigation only. Reply with your findings.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Write tests covering the case where the sidecar returns a 500.",
+    "want": "sonnet",
+    "delegated": "In this repo (/Users/dev/IdeaProjects/claude-router), write tests covering the case where the sidecar returns a 500 error. First explore the codebase (particularly claude_router/agents.py and existing tests like tests/test_agents.py) to understand what \"the sidecar\" refers to \u2014 how it's called (HTTP client, library, etc.), how responses/errors are currently handled, and existing test patterns/fixtures used for mocking it. Then add a test (or tests) that simulates the sidecar returning an HTTP 500 response and verifies the code under test handles it appropriately (e.g., raises the expected exception, returns an error result, retries, or whatever the actual current behavior is \u2014 don't invent new error-handling behavior, just test what exists; if there's a bug where a 500 isn't handled at all, note that but still write a test that documents/exercises actual current behavior, or flag it clearly). Follow the existing test file's conventions (imports, mocking library, fixtures, naming). Run the test suite afterward to confirm the new test(s) pass. Report back concisely what you did and the test run result.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Summarize what server.py does and where its error handling is weak.",
+    "want": "sonnet",
+    "delegated": "Find the file server.py in the current repository (/Users/dev/IdeaProjects/claude-router). Read it fully. Then:\n1. Summarize what server.py does (its purpose, main components/endpoints/functions, overall flow).\n2. Identify where its error handling is weak \u2014 e.g. missing try/except around risky operations (network calls, file I/O, parsing), bare/broad except clauses that swallow errors silently, unvalidated input, missing status code handling, unhandled edge cases, lack of logging on failures, etc. Cite specific line numbers/functions for each weakness.\n\nReport back with a concise summary (functionality overview) followed by a bulleted list of the weak error-handling spots with file:line references.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Add a /stats endpoint that returns the by_tier counts as CSV.",
+    "want": "sonnet",
+    "delegated": "In the claude-router repo (/Users/dev/IdeaProjects/claude-router), add a `/stats` endpoint that returns the by_tier counts as CSV.\n\nContext: look at claude_router/router.py to understand the existing app structure (framework used, how routes are defined, and how by_tier counts are currently tracked/computed \u2014 e.g. if there's an existing stats/metrics structure or endpoint that returns by_tier counts in another format like JSON). Follow the same conventions (framework, route style, response handling) already used in that file.\n\nRequirements:\n- New endpoint at path `/stats`.\n- Response body is CSV with the by_tier counts (e.g. columns like `tier,count`), with an appropriate CSV content-type header (e.g. `text/csv`).\n- Reuse whatever existing logic/data structure computes by_tier counts rather than duplicating it.\n- Keep the change minimal and consistent with existing code style in the file (no unrelated refactors).\n- If tests exist for the router (check the tests/ directory), add a small test for the new endpoint following the existing test style.\n\nReport back what you changed, in under 150 words.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Make /health return a JSON error body listing the allowed paths on a 404.",
+    "want": "sonnet",
+    "delegated": "In this repo (/Users/dev/IdeaProjects/claude-router), find the HTTP routing code (likely claude_router/router.py) that handles the `/health` endpoint. Currently, requests to unknown paths (or the way `/health` is wired) result in a 404. Make `/health` return a JSON error body on a 404 that lists the allowed paths, e.g. something like `{\"error\": \"not found\", \"allowed_paths\": [\"/health\", ...]}`. Inspect the existing routing/dispatch logic to find all currently registered paths so the list is accurate, then implement the change consistent with the existing code style (framework used, response helpers, etc.). Make the actual code edit \u2014 don't just describe it.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Explain why messages_kwargs omits the thinking parameter for Haiku.",
+    "want": "sonnet",
+    "delegated": "In this repo (/Users/dev/IdeaProjects/claude-router), find where `messages_kwargs` is constructed/used (likely in claude_router/router.py or claude_router/agents.py) and explain why it omits the `thinking` parameter specifically for Haiku models. Look at the actual code (conditionals around model name checks, e.g. \"haiku\" in model, extended thinking support, etc.) and any related tests or comments that explain the reasoning. Report back a clear, concise explanation (with file:line references) of why Haiku is excluded from the thinking parameter.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Log every routing decision to a file, one JSON object per line.",
+    "want": "sonnet",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router (claude-router project). Task: Log every routing decision to a file, one JSON object per line (JSONL format).\n\nContext: This repo contains claude_router/router.py which routes prompts to a Claude model by complexity, and claude_router/agents.py. Implement/update logging so that each time a routing decision is made, a JSON object describing that decision is appended as one line to a log file (JSONL). Look at the existing router.py to understand the current routing decision logic and integrate the logging there appropriately (e.g., include fields like prompt, chosen model/agent, complexity score/reason, timestamp). Make sure the file is opened in append mode and each write is a single JSON object followed by a newline.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Write a test that the high-stakes regex matches 'force-push' but not 'force pushing a commit is fine'.",
+    "want": "sonnet",
+    "delegated": "In this repo (/Users/dev/IdeaProjects/claude-router), find the \"high-stakes\" regex/pattern used in claude_router/router.py (or wherever it's defined) that's meant to detect risky operations like force-pushing. Add a test case (in the appropriate existing test file, e.g. tests/test_agents.py or a router test file \u2014 find the right one by convention) asserting that this regex matches the string 'force-push' but does NOT match the string 'force pushing a commit is fine'. Follow the existing test style/framework used in the repo (likely pytest). Run the test to confirm it passes. Do not modify the regex itself unless it's currently broken and failing to match 'force-push' as a substring \u2014 if so, only make the minimal fix needed.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Work out why the daemon takes 98s to start under launchd but 20s in the foreground.",
+    "want": "sonnet",
+    "delegated": "The claude-router daemon (this repo: /Users/dev/IdeaProjects/claude-router) takes 98s to start when launched under launchd, but only 20s when run in the foreground/interactively. Investigate why launchd startup is so much slower and report findings.\n\nThings to check:\n- The launchd plist(s) for this daemon (search for .plist files referencing claude-router, likely in ~/Library/LaunchAgents or ~/Library/LaunchDaemons) \u2014 check WorkingDirectory, EnvironmentVariables, PATH, StandardOutPath/StandardErrorPath, whether it's a LaunchAgent (per-user, GUI session) vs LaunchDaemon (system, no GUI session, no keychain access), and KeepAlive/RunAtLoad settings.\n- claude_router/router.py and claude_router/agents.py \u2014 look for startup-time work: network calls, DNS lookups, subprocess spawns, keychain/credential lookups, model API calls, imports of heavy libraries, or anything that could behave differently without a full user login session / GUI session / network reachability (launchd services often start before network is up, or without access to the user's keychain/session bus, causing timeouts that eventually fall back).\n- pyproject.toml for entry points and dependencies that might do slow initialization (e.g. requests/httpx clients doing proxy auto-detection, or SDKs that probe environment).\n- Check if there's a virtualenv/interpreter path mismatch: launchd may invoke a different python/pip resolution than an interactive shell (no .zshrc/.zprofile sourced under launchd, meaning PATH, pyenv/conda shims, or env vars like ANTHROPIC_API_KEY are missing or resolved differently, causing retries/timeouts).\n- Look for any explicit sleep/retry/backoff/timeout logic (e.g. waiting for network, waiting for a port, polling) that could sum to ~98s specifically (differences of ~78s are suspicious for DNS timeout patterns, e.g. 5 retries * ~15s, or a fixed timeout constant somewhere).\n- Check git diff on router.py and pyproject.toml (both are modified per git status) in case an in-progress change is relevant to this.\n\nReport back: the root cause hypothesis (most likely one, with evidence), and what in the code/config supports it. If you can't find a definitive cause, report the most likely candidates ranked with reasoning and what additional info (e.g. actual plist contents, launchd logs via `log show`) would confirm it. Keep the report focused and evidence-based \u2014 under 400 words.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Refactor ClaudeRouter.route so tier selection and effort selection are separate.",
+    "want": "sonnet",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, refactor the `route` method of `ClaudeRouter` in claude_router/router.py so that tier selection and effort selection are separated into distinct, independent pieces of logic (e.g. separate methods like `_select_tier` and `_select_effort`, or similar), rather than being interleaved in one method. Preserve existing behavior exactly. Read the current file first to understand the existing implementation before making changes.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Add a --json flag to the eval script that prints its results as JSON.",
+    "want": "sonnet",
+    "delegated": "In the repo /Users/dev/IdeaProjects/claude-router, there is a script eval_delegated.py that evaluates something (likely against delegated_corpus.json) and currently prints results in some human-readable form. Add a --json command-line flag to this script that, when passed, makes the script print its results as JSON to stdout instead of (or in addition to, but default should remain unchanged when the flag is absent) the current human-readable output.\n\nPlease:\n1. Read eval_delegated.py to understand its current output format and result data structure (what fields/metrics it computes).\n2. Add argument parsing (e.g. via argparse) for a --json flag.\n3. When --json is set, serialize the results (all relevant summary fields, and if applicable per-item results) to JSON via json.dumps and print that instead of the normal formatted output.\n4. Keep the default (no flag) behavior identical to what it is today.\n5. Make sure the script still runs correctly with and without the flag (e.g. run `python eval_delegated.py --json` and without it, if this is runnable without missing dependencies/API keys \u2014 if it requires an API key or network call to run, just verify the code is syntactically correct and logically sound, e.g. via `python -m py_compile eval_delegated.py`).\n\nThis is a plain code-editing task, not a research task. Make the actual edits to the file.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Explain the difference between RouterClient and ClaudeRouter and when to use each.",
+    "want": "sonnet",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, there are two classes/entities named RouterClient and ClaudeRouter. Investigate the codebase (likely in claude_router/router.py and related files like claude_router/agents.py) to determine:\n1. What RouterClient is and does\n2. What ClaudeRouter is and does\n3. The key differences between them\n4. When a developer should use one vs the other\n\nRead the relevant source files directly to ground your answer in the actual code (not assumptions). Provide a clear, concise explanation suitable as a final answer to the user's question \"Explain the difference between RouterClient and ClaudeRouter and when to use each.\" Include file:line references where relevant.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Make the client retry once on a timeout before falling back to Opus.",
+    "want": "sonnet",
+    "delegated": "In this repo (/Users/dev/IdeaProjects/claude-router), the client that routes prompts to Claude models needs a change: when a request to the primary model times out, retry the request once before falling back to Opus. Look at claude_router/router.py (and claude_router/agents.py if relevant) to find where the model call / timeout / fallback-to-Opus logic currently lives, and modify it so that on a timeout the code retries the same request one additional time, and only falls back to Opus if that retry also times out (or fails). Preserve existing behavior for non-timeout errors. Make the actual code edit.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Document the CHEAP_DOMAINS constant with an example of when it changes a decision.",
+    "want": "sonnet",
+    "delegated": "In the repo at /Users/dev/IdeaProjects/claude-router, find the CHEAP_DOMAINS constant (likely in claude_router/router.py). Add documentation for it (a docstring or comment above the constant) that explains what it's for AND includes a concrete example of a specific case/input where the presence or absence of a domain in CHEAP_DOMAINS changes the routing decision (e.g., which model gets chosen for a given prompt/domain). Read the surrounding code first (how CHEAP_DOMAINS is used in the routing logic) so the example is accurate and reflects real behavior, not a guess. Make a minimal, in-place edit to the file \u2014 do not refactor or restructure surrounding code.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Design a scheme for the sidecar to survive restarts without losing its route statistics. Cover format, flush cadence and crash safety.",
+    "want": "opus",
+    "delegated": "We're working in the claude-router repo (/Users/dev/IdeaProjects/claude-router), a Python project that routes prompts to Claude models by complexity. There's a \"sidecar\" component that maintains route statistics (e.g., counts of which model/route was chosen, latencies, etc.).\n\nTask: Design a scheme for the sidecar to survive process restarts without losing its route statistics. This is a design task, not an implementation task \u2014 produce a written design document/answer (no need to write code unless a tiny illustrative snippet helps).\n\nCover explicitly:\n1. **On-disk format** \u2014 what format to persist stats in (e.g., append-only log vs. periodic snapshot vs. both), why that format suits counters/histograms that update frequently, and how it stays cheap to write.\n2. **Flush cadence** \u2014 how often and under what triggers (time-based interval, event count threshold, shutdown hook) stats get flushed to disk, and the tradeoff between durability and write amplification / performance overhead.\n3. **Crash safety** \u2014 how to guarantee no corruption or partial writes if the process dies mid-flush (e.g., write-to-temp-then-rename, checksums, WAL-style recovery, idempotent replay), and how stats are reconstructed/reconciled on restart (merging a snapshot with any trailing log entries).\n\nBefore designing, briefly look at the actual repo structure (check for an existing sidecar module, how route stats are currently tracked in memory, and the existing pyproject.toml dependencies) so the design fits the existing codebase's language/conventions rather than being purely abstract. Use Explore or grep as needed, but keep this fast \u2014 a few lookups, not exhaustive.\n\nDeliver a clear, structured design answer covering the three points above, tailored to this codebase. This is the final output \u2014 no need for further verification or follow-up, just present the design.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Rework the router so cuts can be A/B tested per project without restarting the daemon, and argue for the design you pick.",
+    "want": "opus",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router (a router that routes prompts to Claude models by complexity \u2014 see claude_router/agents.py and recent commit \"Route each prompt to a Claude model by complexity\").\n\nTask: Rework the router so that routing \"cuts\" (the complexity thresholds / model-selection policy) can be A/B tested per-project, with changes taking effect without restarting the daemon (i.e., hot-reloadable / dynamically configurable per project, not baked into process startup).\n\nPlease:\n1. Explore the current routing implementation (claude_router/agents.py and any related config/daemon code) to understand how cuts/thresholds are currently defined and loaded.\n2. Design a solution for per-project, hot-swappable A/B testing of routing cuts \u2014 e.g., per-project config files or a config store watched/polled by the daemon, an in-memory registry with atomic swap, versioned policies with assignment (deterministic per-project or per-request bucketing), etc.\n3. Implement the design in the codebase.\n4. Write a short design rationale explaining why you chose this approach over alternatives (e.g., restart-required static config, per-request DB lookup, feature-flag service integration) \u2014 cover consistency, latency, operational simplicity, and testability tradeoffs.\n5. Add or update tests (see tests/test_agents.py) to cover the new hot-reload / A/B assignment behavior.\n\nThis is a one-shot delegated task \u2014 there is no follow-up review step, so make sure the implementation is complete, correct, and the rationale is clearly written out in your final response.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Work out whether this cascade actually saves money versus Opus at low effort, and show the arithmetic.",
+    "want": "opus",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router (a \"claude-router\" project that routes each prompt to a Claude model by complexity \u2014 see claude_router/agents.py, and recent commit \"Route each prompt to a Claude model by complexity\"). The user wants to know: does this router's cascade (routing prompts across multiple models by complexity, e.g. cheap model first / escalate on low confidence, or similar) actually save money compared to just always calling Opus at low reasoning effort? Show the arithmetic explicitly.\n\nSteps:\n1. Read claude_router/agents.py and any related routing/cascade logic (check pyproject.toml, tests/test_agents.py, eval_delegated.py, spike_subagents.py, delegated_corpus.json for how the cascade is structured \u2014 how many stages, which models, what triggers escalation).\n2. Determine current Claude API pricing per model (Opus, Sonnet, Haiku \u2014 input/output token costs) \u2014 use whatever pricing info you can find in the repo/docs; if not in repo, use publicly known Anthropic pricing as of 2026.\n3. Work out the actual arithmetic: for a representative prompt/token mix, compute (a) cost of the cascade (e.g. cheap-model-first-pass cost + probability-weighted escalation cost to a bigger model) vs (b) cost of just always using Opus at low reasoning effort (low effort reduces output tokens/thinking tokens but is still full Opus pricing).\n4. State clearly, with numbers, under what escalation rate / hit-rate the cascade wins or loses, and give a concrete break-even point.\n5. Report back a concise final answer (under 400 words) with the worked arithmetic and a clear verdict, since this reply will be shown directly to the user as-is with no further verification from me.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Redesign the sidecar to serve several models' routing tables at once without reloading the checkpoint.",
+    "want": "opus",
+    "delegated": "Redesign the sidecar to serve several models' routing tables at once without reloading the checkpoint.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Design a way to measure whether routing saves money in production, and argue for the metric you choose over the alternatives.",
+    "want": "opus",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router \u2014 a router (claude_router/router.py, claude_router/agents.py) that routes each prompt to a Claude model by complexity (presumably to save cost by sending simpler prompts to cheaper models like Haiku instead of always using Opus/Sonnet).\n\nTask: Design a way to measure whether this routing actually saves money in production, and argue for the metric you choose over the alternatives. This is an analysis/design question, not a coding task \u2014 read enough of the repo (router.py, agents.py, any eval scripts like eval_delegated.py, delegated_corpus.json, tests/) to ground the answer in what actually exists (model choices, cost data if any, how routing decisions are logged), then produce a written answer.\n\nThe answer should:\n1. Propose a concrete metric (e.g. cost-per-resolved-task vs. a fixed baseline, actual-spend vs. counterfactual-always-largest-model spend, cost per unit of quality-adjusted output, etc.) with a precise definition of how it'd be computed from data this system could plausibly log.\n2. Explain what production data/logging would be needed to compute it (e.g. per-request: chosen model, token counts, actual cost, task outcome/quality signal).\n3. Explicitly compare against at least 2-3 plausible alternative metrics (e.g. raw dollar spend, % of requests routed to cheap models, average cost per request) and argue why the chosen metric is better \u2014 specifically call out failure modes of the alternatives (e.g. why raw spend or \"% routed cheap\" can look good while actually hiding quality regressions or losing money on retries).\n4. Address the key confound: routing to a cheaper model might cause more retries, escalations, or lower-quality output that costs more downstream (human correction, follow-up calls) \u2014 the metric should account for this or explain why it's out of scope.\n\nKeep the final answer well-organized and concise (this is going straight to the user as a text response, not a file) \u2014 aim for something like 400-600 words with clear structure (a stated metric, formula/definition, why-not-alternatives, and confound handling). Do not write any code or files; this is a research+writing task. End your work by outputting the final answer text directly (that's the deliverable \u2014 the orchestrator will relay it verbatim to the user).",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "The difficulty score correlates with prompt length. Design a fix and justify it against the other options.",
+    "want": "opus",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router (a router that scores prompt \"difficulty\" to pick which Claude model to route to \u2014 see claude_router/router.py, and note claude_router/agents.py, delegated_corpus.json, eval_delegated.py, spike_subagents.py, tests/test_agents.py, tests/test_delegated_corpus.py exist as untracked/in-progress work).\n\nProblem: the difficulty score currently correlates with prompt length \u2014 i.e. longer prompts get scored as more \"difficult\" regardless of actual complexity, which is a spurious/confounding signal (a long but simple prompt gets over-routed to a stronger/more expensive model, and a short but genuinely hard prompt may get under-routed).\n\nTask: Investigate how the difficulty score is computed in claude_router/router.py (and any related scoring/feature-extraction code), confirm the length-correlation issue concretely (e.g. look at what features feed the score \u2014 token count, character count, word count, etc. \u2014 and how they're weighted), then design a fix. Consider and weigh options such as: normalizing/removing length as a raw feature vs. controlling for it statistically (e.g. residualizing complexity against length), using length-independent complexity signals (syntactic/semantic complexity, number of distinct sub-tasks, presence of code/multi-step instructions, entropy/perplexity-based measures, etc.), capping or log-scaling length's contribution, or an entirely different scoring approach. Justify the chosen fix against the alternatives you considered (trade-offs: robustness, simplicity, computational cost, interpretability, risk of overfitting/regression on existing eval data such as delegated_corpus.json / eval_delegated.py if present).\n\nImplement the fix in the codebase if a clear best option emerges (edit claude_router/router.py and related files), and update or add tests as appropriate. Report back with: (1) what you found about the current scoring approach and evidence of the length correlation, (2) the options considered and why you picked the one you did, (3) what code changes you made.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Decide whether this project should keep the HTTP sidecar or move to a Unix socket, and make the case either way.",
+    "want": "opus",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router (a Claude model router project). The project currently has an HTTP sidecar component (likely claude_router/router.py and related files like claude_router/agents.py). Decide whether this project should keep the HTTP sidecar architecture or move to a Unix domain socket instead, and make a clear case for the chosen direction, referencing the actual code/architecture in this repo (read the relevant files to ground the decision \u2014 e.g. claude_router/router.py, claude_router/agents.py, pyproject.toml, README.md). Consider factors like: local-only vs networked use, latency, security/permissions, deployment complexity, cross-platform concerns (Windows lacks native Unix sockets), ease of debugging/observability, and how it fits the project's current usage pattern. Produce a concise recommendation with reasoning, not a full implementation.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Design a cache so repeated prompts skip the classifier, and reason about what happens to correctness when the cuts change.",
+    "want": "opus",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router (claude_router/router.py is the relevant file, plus claude_router/agents.py which appears to be new/uncommitted).\n\nTask: Design a cache so that repeated prompts skip the classifier (whatever component in router.py currently classifies prompt complexity and routes to a model), and reason about what happens to correctness when the \"cuts\" change \u2014 i.e., when the complexity thresholds/boundaries used by the classifier are adjusted, how does a stale cache interact with that, and what's the correct invalidation/design strategy.\n\nPlease:\n1. Read claude_router/router.py (and agents.py if relevant) to understand the current classification/routing logic \u2014 what \"prompt\", \"classifier\", and \"cuts\" (thresholds) mean concretely in this codebase.\n2. Propose a concrete cache design (data structure, key, value, eviction policy, where it sits in the pipeline) for skipping the classifier on repeated prompts.\n3. Reason carefully about correctness under threshold changes: if the classifier's cut points (e.g., score thresholds separating which model tier a prompt routes to) change after entries are cached, explain precisely what goes wrong (stale routing decisions surviving a boundary change) and what invalidation strategies fix it (e.g., versioning the cache key by a classifier/threshold version, TTL, cache the raw score instead of final routing decision, etc.) and the tradeoffs of each.\n4. This is a design/reasoning task, not an implementation task \u2014 do not write code unless it's a short illustrative snippet. Do not modify any files.\n\nReport back a concise design writeup (structured, not code) covering: cache design, and the correctness analysis of threshold changes with recommended invalidation strategy and why.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Propose an architecture for routing across several providers rather than just Anthropic, and defend the abstraction you choose.",
+    "want": "opus",
+    "delegated": "The user of the claude-router project (a Python-based CLI router that currently routes prompts to Claude models by complexity \u2014 see claude_router/router.py, claude_router/agents.py, pyproject.toml) has asked:\n\n\"Propose an architecture for routing across several providers rather than just Anthropic, and defend the abstraction you choose.\"\n\nPlease research the current repo structure (claude_router/router.py, claude_router/agents.py, pyproject.toml, tests/) to understand the existing routing design (how it currently picks Claude models by complexity, what interfaces/classes exist), then produce a full written answer to the user's question:\n\n1. Propose a concrete architecture for routing prompts across multiple LLM providers (e.g. Anthropic, OpenAI, Google, local/Ollama models), not just Anthropic. Include the key abstraction(s) you'd introduce (e.g. a Provider interface/protocol, a unified request/response schema, capability/cost metadata per model, a registry, the routing/decision layer, error handling/fallback across providers).\n2. Defend the abstraction choice: explain why this design over alternatives (e.g. why a Protocol/ABC over a big if/else, why separate provider adapters, how it handles differing APIs \u2014 streaming, tool calling, token counting \u2014 across providers, how it stays testable, and trade-offs you're accepting).\n3. Ground the proposal in the actual current code where relevant (reference real file paths and existing abstractions/classes/functions you found, e.g. router.py:LINE, agents.py:LINE), rather than inventing structure that doesn't exist in the repo.\n\nThis is a design/architecture discussion only \u2014 do NOT write or edit any code, do NOT create new files. Just produce the analysis and proposal as your final response text, well-organized with clear sections. This is your entire task; your reply is the final answer that will be shown to the user directly.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Evaluate whether laya is the right classifier for this job at all and recommend what to do about it.",
+    "want": "opus",
+    "delegated": "You're working in the repo /Users/dev/IdeaProjects/claude-router (a Claude prompt router: it routes prompts to different Claude models based on complexity, and recently added subagent delegation \u2014 see claude_router/router.py, claude_router/agents.py, pyproject.toml, and the various delegated_corpus.json / eval_delegated.py / spike_subagents.py / tests/ files that are currently untracked/modified in git status).\n\nTask: Evaluate whether \"laya\" is the right classifier for this job at all, and recommend what to do about it.\n\nYou'll need to first figure out what \"laya\" refers to in this context \u2014 search the codebase (router.py, agents.py, pyproject.toml, tests, any config/docs) for references to \"laya\" (it may be a classifier model/library name, a config value, or a dependency). Look at how it's used, what job it's being asked to do (e.g., classifying prompt complexity, or deciding which agent/subagent to route a task to), and assess:\n- Is laya well-suited for this classification job (accuracy, latency, cost, maintainability) compared to alternatives?\n- Are there signs in the code/tests/eval scripts (e.g., eval_delegated.py, delegated_corpus.json) of it underperforming or being a poor fit?\n- What would you recommend: keep it, replace it, tune it, or something else?\n\nProduce a concise, concrete recommendation (a few paragraphs) grounded in what you actually find in the code \u2014 cite file paths/line numbers for key evidence. This is a research/evaluation task, not a coding task \u2014 do not modify any files.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Design a rollout plan for changing the tier cuts without regressing anyone's costs, and say how you would know if it went wrong.",
+    "want": "opus",
+    "delegated": "The user is working in the claude-router repo (~/IdeaProjects/claude-router), a project that routes prompts to different Claude models based on complexity (see claude_router/router.py, claude_router/agents.py). There's a concept of \"tier cuts\" \u2014 thresholds that decide which complexity tier (and therefore which model/cost) a given prompt gets routed to.\n\nThe user's request: \"Design a rollout plan for changing the tier cuts without regressing anyone's costs, and say how you would know if it went wrong.\"\n\nPlease investigate the repo first (read claude_router/router.py, claude_router/agents.py, pyproject.toml, and any eval/test files like eval_delegated.py, delegated_corpus.json, tests/test_delegated_corpus.py, tests/test_agents.py, tests/test_payload_stripping.py) to understand:\n- How tier cuts/thresholds are currently defined and used to route prompts to models\n- What existing evaluation/testing infrastructure exists (e.g., delegated_corpus.json, eval_delegated.py) that could be used to validate routing changes\n- What cost/complexity signals are already tracked\n\nThen produce a concrete, concise rollout plan (not a generic SRE playbook) tailored to this actual codebase, covering:\n1. How to change the tier cuts safely (e.g., shadow/dry-run mode, gradual rollout, canary percentage, feature flag or config-based toggle) \u2014 no regressions in per-user or aggregate cost\n2. What metrics/logs to compare before vs after (e.g., cost per prompt, tier distribution shift, per-user cost deltas) using whatever infrastructure already exists in this repo\n3. Concrete rollback criteria and how you'd detect \"it went wrong\" (specific thresholds/signals, not vague ones) \u2014 e.g., using eval_delegated.py or delegated_corpus.json as a regression check before shipping, and production monitoring after shipping\n\nThis is a design/planning question \u2014 do NOT write or edit any code. Just investigate the repo (read-only) and return a well-organized, concrete rollout plan as your final report, referencing actual file names/functions where relevant. Keep the report focused and actionable, roughly 400-600 words, organized with clear steps/phases and a distinct \"how to know if it went wrong\" section.",
+    "orchestrator": "sonnet"
+  },
+  {
+    "request": "Work out how to detect that the sidecar's routing quality has degraded in production, and design the alerting for it.",
+    "want": "opus",
+    "delegated": "Repo: /Users/dev/IdeaProjects/claude-router (a sidecar that routes prompts to different Claude models by complexity \u2014 see claude_router/router.py and claude_router/agents.py).\n\nTask: Work out how to detect that the sidecar's routing quality has degraded in production, and design the alerting for it.\n\nPlease investigate the current routing logic (router.py, agents.py) and any existing eval/testing scaffolding (eval_delegated.py, delegated_corpus.json, tests/test_delegated_corpus.py) to ground your design in what's actually there. Then produce a concrete plan covering:\n\n1. What \"routing quality degradation\" means concretely for this system (e.g. wrong model tier chosen, misclassification of complexity, latency/cost regressions from over-routing to expensive models, under-routing causing quality complaints, drift in the corpus vs production traffic).\n2. Signals/metrics to instrument in production (e.g. routing decision distribution over time, agreement rate against a golden/eval set sampled from production traffic, proxy metrics like downstream task success or user retries/edits, cost per request, latency).\n3. How to detect degradation statistically (baselines, thresholds, drift detection \u2014 e.g. population stability index or similar, anomaly detection on distribution shifts, canary comparisons).\n4. Concrete alerting design: what alerts to fire, on what conditions/thresholds, at what severity, to whom, with what runbook guidance, and how to avoid alert fatigue (e.g. burn-rate style multi-window alerts).\n5. Practical implementation notes tied to this codebase \u2014 what would need to be added (logging, sampling, eval harness integration, dashboards).\n\nThis is a design task, not an implementation task \u2014 no code changes needed unless something small and illustrative helps. Write the full design as your final response.",
+    "orchestrator": "sonnet"
+  }
+]
