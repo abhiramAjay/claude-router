@@ -5,8 +5,21 @@
 
 Binds to loopback only by default -- this holds no secrets, but it also has no
 auth, so do not expose it. The ~21 s model load happens once at startup; each
-route is then ~75 ms. Threaded, and laya's own inference is not lock-guarded,
-so concurrent requests share the checkpoint instead of serialising.
+route is then ~140 ms.
+
+Threaded for accept and I/O, but inference is serialised behind a lock. That is
+not a throughput choice, it is a correctness one: torch's MPS backend is not
+thread-safe, and two concurrent forward passes abort the process at the Metal
+layer --
+
+    failed assertion _status < MTLCommandBufferStatusCommitted
+      at -[IOGPUMetalCommandBuffer setCurrentCommandEncoder:]
+
+-- which is a hard abort, not a Python exception, so no handler can catch it.
+The daemon dies, launchd takes ~95 s to bring it back, and every route in that
+window falls back to the expensive model. An agent that delegates several tasks
+at once hits this immediately, which is the normal case. At ~140 ms a route, a
+lock costs far less than a restart.
 """
 import argparse
 import json
@@ -24,6 +37,9 @@ _router = ClaudeRouter()
 # stdlib-only client -- the whole reason the sidecar exists.
 _head = head_mod.HeadRouter()
 _ready = threading.Event()
+# Serialises every forward pass. See the module docstring: concurrent inference
+# on MPS aborts the process, so this guards correctness, not just the stats.
+_infer_lock = threading.Lock()
 _stats = {"routes": 0, "by_tier": {}, "by_mode": {}}
 
 
@@ -34,13 +50,14 @@ def _route(prompt: str, mode: str) -> Route:
     path stays because it needs no trained artefact -- a checkout with no
     routing_head.joblib still routes, just worse.
     """
-    if mode == "head":
-        d = _head.route(prompt, escalate=_router.escalate)
-        return Route(tier=d["tier"], model=TIERS[d["tier"]][0], effort=d["effort"],
-                     difficulty=float("nan"),      # the head predicts a class, not a scalar
-                     domain="", reason=d["reason"], escalated=d["escalated"],
-                     signals={"head": d["confidence"]})
-    return _router.route(prompt)
+    with _infer_lock:
+        if mode == "head":
+            d = _head.route(prompt, escalate=_router.escalate)
+            return Route(tier=d["tier"], model=TIERS[d["tier"]][0], effort=d["effort"],
+                         difficulty=float("nan"),  # the head predicts a class, not a scalar
+                         domain="", reason=d["reason"], escalated=d["escalated"],
+                         signals={"head": d["confidence"]})
+        return _router.route(prompt)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -76,9 +93,10 @@ class Handler(BaseHTTPRequestHandler):
             d = _route(prompt, mode)
         except Exception as e:                      # never take the daemon down on one bad prompt
             return self._send(500, {"error": "%s: %s" % (type(e).__name__, e)})
-        _stats["routes"] += 1
-        _stats["by_tier"][d.tier] = _stats["by_tier"].get(d.tier, 0) + 1
-        _stats["by_mode"][mode] = _stats["by_mode"].get(mode, 0) + 1
+        with _infer_lock:                        # dict updates are not atomic either
+            _stats["routes"] += 1
+            _stats["by_tier"][d.tier] = _stats["by_tier"].get(d.tier, 0) + 1
+            _stats["by_mode"][mode] = _stats["by_mode"].get(mode, 0) + 1
         self._send(200, d.to_dict())
 
     def log_message(self, fmt, *a):                 # quiet by default; --verbose restores it
@@ -102,6 +120,7 @@ def main(argv=None):
     if args.mode == "head" and head_mod.available():
         _head._agent = _router.agent                # one checkpoint, shared, not loaded twice
         _head.bundle                                # surface a broken artefact now, not mid-request
+        _head.route("warm up the encoder")          # first pass is ~1 s; pay it before traffic
         print("routing head loaded", file=sys.stderr, flush=True)
     elif args.mode == "head":
         print("no trained head; falling back to the difficulty score", file=sys.stderr, flush=True)
