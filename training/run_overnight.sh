@@ -10,6 +10,18 @@
 # in-process retry logic. A provider whose key is dead simply burns its restarts
 # and stops; the others carry on.
 #
+# Restarting on exit is not enough: a generator can hang instead of dying, and a
+# hung process never exits. Measured -- after the machine slept mid-run, all four
+# generators came back holding dead sockets and sat idle for seven hours without
+# one of them exiting. So the watchdog below restarts on *silence*: if a
+# provider's log has not grown in STALL_AFTER seconds, it is killed and started
+# again. Liveness is judged by output, not by the process table.
+#
+# NOTE ON SLEEP: this keeps nothing awake. Closing the lid on battery triggers
+# an unconditional clamshell sleep and everything here freezes with it. Run it
+# with the lid open and the charger in:
+#     caffeinate -is sh training/run_overnight.sh 5000
+#
 # Snapshots matter as much as the corpus. Reaching 5000 is worthless if the
 # real-40 score went flat at 800, and only a curve over time shows that. Every
 # snapshot trains on what exists at that moment and appends one row to
@@ -25,6 +37,7 @@ OUTDIR="$ROOT/training/seeded"
 LOGDIR="${LOGDIR:-$ROOT/training/logs}"
 CURVE="$ROOT/training/curve.tsv"
 SNAPSHOT_EVERY=1800          # seconds
+STALL_AFTER=600              # restart a provider whose log has been silent this long
 
 mkdir -p "$OUTDIR" "$LOGDIR"
 [ -f "$KEYS" ] || { echo "no key file at $KEYS" >&2; exit 1; }
@@ -58,6 +71,26 @@ run_provider groq   "https://api.groq.com/openai/v1"                       "${GR
 run_provider hf     "https://router.huggingface.co/v1"                     "${HF_KEY:-}"     "Qwen/Qwen3-235B-A22B-Instruct-2507" 4 1
 run_provider gemini "https://generativelanguage.googleapis.com/v1beta/openai" "${GEMINI_KEY:-}" "gemini-3.6-flash"                   4 2
 run_provider aion   "https://api.aionlabs.ai/v1"                           "${AION_KEY:-}"   "aion-labs/aion-3.0-mini"            3 2
+
+# Watchdog: kill any generator whose log has gone quiet. Its restart loop then
+# starts a fresh one, which is the only way a hang gets cleared.
+( while [ "$(count)" -lt "$TARGET" ]; do
+    sleep 60
+    now=$(date +%s)
+    for name in groq hf gemini aion; do
+      log="$LOGDIR/$name.log"
+      [ -f "$log" ] || continue
+      last=$(stat -f %m "$log" 2>/dev/null || echo "$now")
+      if [ $((now - last)) -ge "$STALL_AFTER" ]; then
+        pid=$(pgrep -f "briefs-$name.jsonl" | head -1)
+        if [ -n "$pid" ]; then
+          echo "--- watchdog: $name silent $((now - last))s, killing $pid $(date '+%H:%M:%S')" >> "$log"
+          kill -9 "$pid" 2>/dev/null
+        fi
+      fi
+    done
+  done ) &
+echo "  watchdog started (pid $!)"
 
 [ -f "$CURVE" ] || printf 'time\tn\tsynthetic_cv\treal_40\n' > "$CURVE"
 
