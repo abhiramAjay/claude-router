@@ -106,6 +106,8 @@ DELEGATION_INSTRUCTION = (
 class TaskRouter:
     """PreToolUse hook that re-points each Task call at a laya-chosen agent."""
 
+    # mode=None defers to the sidecar's default, which is the trained head.
+    # Measured on 40 real delegated briefs: head 38/40, difficulty score 20/40.
     client: RouterClient = field(default_factory=RouterClient)
     log: List[Dict[str, Any]] = field(default_factory=list)
 

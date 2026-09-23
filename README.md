@@ -309,43 +309,53 @@ the model had learned the templates, not the concept. Cross-validation on
 generated data only proves the generator is self-consistent; the real 40 is the
 number that counts.
 
-**Measured result: synthetic training data does not transfer.** 157 briefs from
-four providers (Groq `gpt-oss-120b`, Gemini 3.6 Flash, HF `Qwen3-235B`, Aion 3.0
-mini), then the learning curve:
+**The trained head is now the default.** Seeding the generator with real briefs
+was the change that made synthetic data transfer; local generation with Ollama
+(~800 briefs/hour, against ~65/hour for four throttled hosted free tiers
+combined) was what made the corpus big enough to matter.
 
 ```
 n       cross-val (synthetic)   REAL 40 (held out)
-30              77%                   70%
-38              69%                   52%
-76              91%                   55%
-114             90%                   55%
-152             93%                   57%
+217             78%                    82%
+529             80%                    85%
+1188            88%                    88%
+2299            90%                    92%
+2653            90%                    95%   <- plateau
 ```
 
-Synthetic accuracy climbs to 93% while the real score stays flat near 55%. That
-is the head learning the *generator* -- how four models write training examples --
-and the skill not transferring to what an orchestrator actually writes. Generating
-the remaining ~550 briefs was abandoned on that evidence: the line was flat.
+Scored on the 40 real briefs, with 3031 synthetic training briefs:
 
-Inspecting both sides shows why. Generated briefs are uniformly tidy
-(`Repo: / File: / Context: / Task: / Acceptance Criteria:`); real ones are messier
-and more varied. The models write what a brief *should* look like. Two payload
-types (`logs`, `bigfile`) never got generated at all before the run was stopped,
-and those are the hard cases.
+| | real 40 | short briefs | long briefs |
+|---|---|---|---|
+| shipped router (difficulty score) | 20/40, 50% | 35% | 65% |
+| strip + category (hand-tuned) | 27/40, 68% | 55% | 75% |
+| **trained head** | **38/40, 95%** | **95%** | **95%** |
 
-Scoreboard on the 40 real briefs:
+Short and long briefs now score identically, which is the whole point: the
+length bias is gone, because payload size is uncorrelated with the label in the
+training data. Error profile is 2 overspends and **0 underspends** -- nothing is
+sent to a model too weak for it, so no retries are wasted.
 
-| | |
-|---|---|
-| shipped router (difficulty score, raw) | 20/40, 50% |
-| head trained on 157 synthetic briefs | 23/40, 58% |
-| **strip + category question (hand-tuned)** | **27/40, 68%** |
-| head trained on 27 *real* examples | 60% (+/- 18), 5-fold CV -- too little data |
+27 of those 40 seeded the generator, so the honest number is the 13 it never
+saw: **12/13**. The single miss is "Summarize what server.py does and where its
+error handling is weak", labelled `edit` and predicted `design` -- arguably a
+bad label, since "where is it weak" is a judgement call.
 
-The hand-tuned approach still wins. The next thing to try is seeding the
-generator few-shot from the *training split* of the real briefs, so it imitates
-the real distribution rather than inventing a tidy one, with the held-out 13 kept
-clean. Untested.
+An earlier unseeded run is the counter-example worth keeping in mind: it reached
+93% cross-validated on synthetic data while stuck at 55% on the real briefs. The
+model had learned how four providers write practice questions. Cross-validation
+on generated data measures only whether the generator agrees with itself.
+
+```sh
+python training/train_head.py --data 'training/seeded/*.jsonl'   # train + score
+python training/train_head.py --curve                            # does more data help?
+laya-routerd --mode score      # opt out of the head
+```
+
+`RouterClient(mode="head"|"score")` overrides per call site; the default defers
+to the sidecar, so switching every project over is a daemon restart rather than
+a release of each client. A checkout with no `routing_head.joblib` degrades to
+the difficulty score instead of failing.
 
 Provider quirks worth knowing, all of which look fatal and are not:
 

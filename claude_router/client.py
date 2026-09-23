@@ -9,6 +9,14 @@ Standard library only -- no torch, no httpx. This is what your projects import.
     client.messages.create(**d.messages_kwargs(), max_tokens=16000,
                            messages=[{"role": "user", "content": prompt}])
 
+`mode` picks the classifier: "head" for the trained one, "score" for the
+difficulty cuts, or None to take whatever the sidecar defaults to -- which means
+switching every project over is a daemon restart, not a release of each client.
+
+The default timeout is 5 s rather than 2 s: delegated briefs run to thousands of
+characters, and a route that breaches the timeout is scored as a fallback to the
+expensive model, which is a silent and expensive way to lose.
+
 If the sidecar is down, slow, or erroring, `route()` returns `fallback_model`
 with a reason saying so. Routing degrades to "always use the good model" --
 you stop saving money, nothing breaks. Set `on_error="raise"` to surface it
@@ -27,16 +35,21 @@ FALLBACK_MODEL = os.environ.get("CLAUDE_ROUTER_FALLBACK", "claude-opus-5")
 
 
 class RouterClient:
-    def __init__(self, url: str = DEFAULT_URL, timeout: float = 2.0,
+    def __init__(self, url: str = DEFAULT_URL, timeout: float = 5.0,
                  fallback_model: str = FALLBACK_MODEL, fallback_effort: Optional[str] = "high",
-                 on_error: str = "fallback"):
+                 on_error: str = "fallback", mode: Optional[str] = None):
         if on_error not in ("fallback", "raise"):
             raise ValueError("on_error must be 'fallback' or 'raise'")
+        if mode not in (None, "head", "score"):
+            raise ValueError("mode must be None, 'head' or 'score'")
         self.url = url.rstrip("/")
         self.timeout = timeout
         self.fallback_model = fallback_model
         self.fallback_effort = fallback_effort
         self.on_error = on_error
+        # None lets the sidecar decide, so switching every project to the trained
+        # head is a daemon restart rather than a release of each client.
+        self.mode = mode
 
     def _fallback(self, why: str) -> Route:
         tier = next((t for t, (m, _, _) in TIERS.items() if m == self.fallback_model), "opus")
@@ -45,7 +58,10 @@ class RouterClient:
                      escalated=False, signals={})
 
     def route(self, prompt: str) -> Route:
-        body = json.dumps({"prompt": prompt}).encode()
+        payload = {"prompt": prompt}
+        if self.mode:
+            payload["mode"] = self.mode
+        body = json.dumps(payload).encode()
         req = urllib.request.Request(self.url + "/route", data=body,
                                      headers={"Content-Type": "application/json"})
         try:

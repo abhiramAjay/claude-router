@@ -73,6 +73,39 @@ class HeadRouter:
     def tier(self, prompt: str) -> str:
         return self.tiers([prompt])[0]
 
+    def route(self, prompt: str, escalate: Any = None) -> Dict[str, Any]:
+        """A Route-shaped dict, so the head can serve the same wire format.
+
+        The head predicts a tier, not a difficulty scalar, so there is no
+        continuous signal left to split effort on the way the score path did.
+        Within-tier effort was never validated against labelled data anyway --
+        the eval scores tier choice -- so this uses the class probability as a
+        documented heuristic rather than pretending to a measurement: a
+        confidently-design task earns `xhigh`, a marginal one `high`.
+
+        The high-stakes guard is orthogonal to all of this and still applies. It
+        is a deterministic regex precisely because no learned signal here has
+        been shown to track stakes.
+        """
+        probs = self.confidence(prompt)
+        tier = max(probs, key=probs.get)
+        p = probs[tier]
+        reason = "head: %s p=%.2f" % (tier, p)
+
+        escalated = bool(escalate.search(prompt)) if escalate is not None else False
+        if escalated and tier != "opus":
+            tier, reason = "opus", "high-stakes guard matched; %s overridden" % reason
+            p = probs["opus"]
+
+        if tier == "haiku":
+            effort = None                      # Haiku 4.5 rejects output_config.effort
+        elif tier == "opus":
+            effort = "xhigh" if p >= 0.80 else "high"
+        else:
+            effort = "high"
+        return {"tier": tier, "effort": effort, "confidence": probs,
+                "reason": reason, "escalated": escalated}
+
     def confidence(self, prompt: str) -> Dict[str, float]:
         """Per-tier probability. Useful for a "when unsure, spend more" policy:
         a low-margin prediction is a reasonable trigger to escalate a tier
