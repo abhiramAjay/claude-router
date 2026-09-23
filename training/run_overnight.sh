@@ -38,8 +38,21 @@ LOGDIR="${LOGDIR:-$ROOT/training/logs}"
 CURVE="$ROOT/training/curve.tsv"
 SNAPSHOT_EVERY=1800          # seconds
 STALL_AFTER=600              # restart a provider whose log has been silent this long
+OLLAMA_BIN=/opt/homebrew/opt/ollama/bin/ollama
 
 mkdir -p "$OUTDIR" "$LOGDIR"
+
+# Ollama must be up before its generator starts, and it is the main producer.
+if ! curl -s --max-time 3 http://127.0.0.1:11434/api/version > /dev/null 2>&1; then
+  if [ -x "$OLLAMA_BIN" ]; then
+    echo "starting ollama"
+    OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0 "$OLLAMA_BIN" serve \
+      >> "$LOGDIR/ollama-serve.log" 2>&1 &
+    sleep 5
+  else
+    echo "ollama not found at $OLLAMA_BIN -- continuing without it" >&2
+  fi
+fi
 [ -f "$KEYS" ] || { echo "no key file at $KEYS" >&2; exit 1; }
 . "$KEYS"
 
@@ -56,6 +69,13 @@ run_provider() {
             --api-key "$key" --model "$model" --n 2000 --seed-from-real \
             --out "$OUTDIR/briefs-$name.jsonl" --per-call "$percall" \
             --sleep "$pause" >> "$LOGDIR/$name.log" 2>&1
+      rc=$?
+      # Exit 2 means the key itself is finished -- no credits, revoked, blocked.
+      # No number of restarts changes that.
+      if [ "$rc" -eq 2 ]; then
+        echo "--- $name: key exhausted or rejected, not restarting $(date '+%H:%M:%S')" >> "$LOGDIR/$name.log"
+        break
+      fi
       fails=$((fails + 1))
       echo "--- $name exited (restart $fails) $(date '+%H:%M:%S')" >> "$LOGDIR/$name.log"
       # A provider that dies instantly over and over is out of quota or has a
@@ -67,6 +87,12 @@ run_provider() {
 }
 
 echo "target $TARGET briefs, currently $(count)"
+# Ollama first: it is local, so it has no quota, no key and no rate limit, and
+# it measured 800 briefs/hour against ~65/hour for the throttled free tiers
+# combined. The hosted providers stay in the mix for diversity -- a corpus from
+# one model teaches the head that model's habits -- but they are no longer what
+# the throughput depends on.
+run_provider ollama "http://127.0.0.1:11434/v1"                            "ollama"          "qwen2.5-coder:7b"                   4 0
 run_provider groq   "https://api.groq.com/openai/v1"                       "${GROQ_KEY:-}"   "openai/gpt-oss-120b"                4 3
 run_provider hf     "https://router.huggingface.co/v1"                     "${HF_KEY:-}"     "Qwen/Qwen3-235B-A22B-Instruct-2507" 4 1
 run_provider gemini "https://generativelanguage.googleapis.com/v1beta/openai" "${GEMINI_KEY:-}" "gemini-3.6-flash"                   4 2
@@ -77,7 +103,7 @@ run_provider aion   "https://api.aionlabs.ai/v1"                           "${AI
 ( while [ "$(count)" -lt "$TARGET" ]; do
     sleep 60
     now=$(date +%s)
-    for name in groq hf gemini aion; do
+    for name in ollama groq hf gemini aion; do
       log="$LOGDIR/$name.log"
       [ -f "$log" ] || continue
       last=$(stat -f %m "$log" 2>/dev/null || echo "$now")

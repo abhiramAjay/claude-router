@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Brief Generator</title>
+<script src="https://js.puter.com/v2/"></script>
+<style>
+  :root { --bg:#fbfaf9; --fg:#1d1c1a; --mut:#6b6864; --line:#e4e1dd; --ok:#2f7d4f; --bad:#b0412e; --card:#fff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme=light]) {
+    --bg:#161514; --fg:#eceae7; --mut:#9a9691; --line:#2e2c2a; --ok:#6cc08b; --bad:#e0806c; --card:#1e1d1b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 16px; background:var(--bg); color:var(--fg);
+         font:15px/1.5 ui-sans-serif,-apple-system,system-ui,sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 20px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  button { font:inherit; padding:8px 16px; border-radius:8px; border:1px solid var(--line);
+           background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+  button:disabled { opacity:.45; cursor:default; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; margin:16px 0; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat b { display:block; font-size:22px; font-variant-numeric:tabular-nums; }
+  .stat span { color:var(--mut); font-size:12px; }
+  #log { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+         height:300px; overflow:auto; font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+         white-space:pre-wrap; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .mut { color:var(--mut); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Delegated-brief generator</h1>
+  <p class="sub">Generates labelled training briefs via Puter.js and posts them to the local
+     receiver on port 8130. Calls are metered to the signed-in Puter account.</p>
+
+  <div class="row">
+    <button class="primary" id="start">Start</button>
+    <button id="stop" disabled>Stop</button>
+    <label class="mut">target <input id="target" type="number" value="1000" min="1" style="width:88px"></label>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="n-written">0</b><span>written</span></div>
+    <div class="stat"><b id="n-dup">0</b><span>duplicate</span></div>
+    <div class="stat"><b id="n-fail">0</b><span>failed calls</span></div>
+    <div class="stat"><b id="n-total">—</b><span>corpus total</span></div>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<script>
+const RECEIVER = "http://127.0.0.1:8130";
+const PER_CALL = 5;
+let CFG = null, running = false;
+const S = { written: 0, dup: 0, fail: 0 };
+
+const $ = id => document.getElementById(id);
+function log(msg, cls) {
+  const el = $("log");
+  const at = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+  el.insertAdjacentHTML("beforeend",
+    `<div class="${cls||''}">${new Date().toLocaleTimeString()}  ${msg}</div>`);
+  if (at) el.scrollTop = el.scrollHeight;
+}
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// The same contract the Python generator uses: payload size is sampled
+// independently of the label, so length carries no information about the tier
+// and the model cannot use it as a shortcut.
+function buildPrompt(tier, payload, payloadDesc, stack) {
+  const pool = CFG.seeds[tier];
+  const ex = [];
+  while (ex.length < Math.min(2, pool.length)) {
+    const s = pick(pool);
+    if (!ex.includes(s)) ex.push(s);
+  }
+  const examples = ex.map((b, i) => `--- REAL EXAMPLE ${i+1} ---\n${b}`).join("\n\n");
+  return `You are generating training data for a model that decides which AI model should handle a delegated coding task.
+
+Below are REAL examples of briefs a coding orchestrator actually wrote when delegating to a subagent. Study their voice, structure, length and messiness:
+
+${examples}
+
+Now write ${PER_CALL} DIFFERENT examples in that same style -- not the style of a tidy template. Real briefs vary: some open with repo context, some dive straight in, some ramble, some are terse. Match that variety.
+
+Every example must be for ${stack} and must be labelled "${tier}":
+${CFG.tiers[tier]}
+
+Every example must include: ${payloadDesc}.
+
+CRITICAL: the amount of pasted material must NOT reflect how hard the task is. In this batch the task is "${tier}" and the payload is "${payload}" -- keep both exactly as specified even when that feels mismatched. A trivial lookup wrapped in a 200-line log dump is a deliberately wanted example.
+
+Return ONLY a JSON array, no markdown fence, no commentary:
+[{"brief": "<the full delegated prompt, payload included, \\n for newlines>", "tier": "${tier}"}]`;
+}
+
+// Models wrap JSON in fences and prose regardless of instructions; salvage the
+// array rather than throwing the whole call away.
+function parse(text, tier) {
+  if (typeof text !== "string") text = String(text ?? "");
+  let t = text.trim();
+  if (t.startsWith("```")) {
+    const parts = t.split("```");
+    t = parts[1] || "";
+    if (/^json/i.test(t)) t = t.slice(4);
+  }
+  const a = t.indexOf("["), b = t.lastIndexOf("]");
+  if (a < 0 || b < a) return [];
+  let rows;
+  try { rows = JSON.parse(t.slice(a, b + 1)); } catch { return []; }
+  if (!Array.isArray(rows)) return [];
+  return rows.filter(r => r && typeof r.brief === "string" && r.brief.length > 40
+                          && ["lookup","edit","design"].includes(r.tier || tier))
+             .map(r => ({ brief: r.brief, tier: r.tier || tier }));
+}
+
+async function post(rows) {
+  const res = await fetch(RECEIVER, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rows),
+  });
+  return res.json();
+}
+
+async function loop() {
+  const target = parseInt($("target").value, 10) || 1000;
+  while (running && S.written < target) {
+    const tier = pick(Object.keys(CFG.tiers));
+    const [payload, payloadDesc] = pick(CFG.payloads);
+    const model = pick(CFG.models);
+    const stack = pick(CFG.stacks);
+    try {
+      const resp = await puter.ai.chat(buildPrompt(tier, payload, payloadDesc, stack), { model });
+      const text = resp?.message?.content ?? resp?.text ?? resp;
+      const rows = parse(typeof text === "object" ? JSON.stringify(text) : text, tier)
+                     .map(r => ({ ...r, payload, source: "puter:" + model }));
+      if (!rows.length) { S.fail++; log(`no rows from ${model} (${tier}/${payload})`, "mut"); }
+      else {
+        const out = await post(rows);
+        S.written += out.written; S.dup += out.duplicate;
+        $("n-total").textContent = out.total;
+        log(`+${out.written} ${tier}/${payload} <span class="mut">${model}</span>`, "ok");
+      }
+    } catch (e) {
+      S.fail++;
+      log(`${String(e?.message || e).slice(0, 140)}`, "bad");
+      // Back off a little so a failing model does not spin the loop.
+      await new Promise(r => setTimeout(r, 2500));
+    }
+    $("n-written").textContent = S.written;
+    $("n-dup").textContent = S.dup;
+    $("n-fail").textContent = S.fail;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  running = false;
+  $("start").disabled = false; $("stop").disabled = true;
+  log(`stopped at ${S.written} written`, "mut");
+}
+
+$("start").onclick = async () => {
+  if (running) return;
+  $("start").disabled = true; $("stop").disabled = false;
+  running = true;
+  try {
+    if (!CFG) {
+      CFG = await (await fetch("./puter_config.json")).json();
+      log(`config loaded: ${Object.values(CFG.seeds).flat().length} seeds, ${CFG.models.length} models`, "mut");
+    }
+    const health = await (await fetch(RECEIVER)).json();
+    $("n-total").textContent = health.total;
+    log(`receiver up, corpus has ${health.total}`, "mut");
+    if (!(await puter.auth.isSignedIn())) { log("signing in to Puter…", "mut"); await puter.auth.signIn(); }
+    log(`signed in as ${(await puter.auth.getUser()).username}`, "ok");
+  } catch (e) {
+    log(`startup failed: ${e?.message || e}`, "bad");
+    running = false; $("start").disabled = false; $("stop").disabled = true;
+    return;
+  }
+  loop();
+};
+$("stop").onclick = () => { running = false; log("stopping after current call…", "mut"); };
+</script>
+</body>
+</html>

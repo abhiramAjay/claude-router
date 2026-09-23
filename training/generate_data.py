@@ -347,7 +347,11 @@ def main(argv=None) -> int:
                         detail = ""
                     print("  %s %s -- not retryable, stopping\n  %s"
                           % (e.code, e.reason, detail), file=sys.stderr)
-                    return 1
+                    # 401/402/403 are permanent for this key: a dead credential,
+                    # an exhausted plan, a blocked account. Restarting cannot fix
+                    # any of them, so exit 2 to tell a supervisor not to try --
+                    # HF burned 40 restarts in 20 minutes on a 402 before this.
+                    return 2 if e.code in (401, 402, 403) else 1
                 print("  %s, waiting %.0fs" % (e.code, wait), file=sys.stderr)
                 if fails > 40 and not written:
                     print("giving up: nothing is coming back", file=sys.stderr)
