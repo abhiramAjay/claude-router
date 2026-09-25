@@ -166,6 +166,11 @@ cannot route the main conversation, only what that conversation delegates. If th
 sidecar is down or slow (>5 s), the hook exits silently and Claude Code uses its
 own default, not Opus. Decisions are logged to `~/Library/Logs/laya-cc-hook.jsonl`.
 
+An idle sidecar's first forward pass takes longer than that 5 s, so the settings
+also run `cc_hook --warm` on SessionStart: it detaches (~40 ms to return) and
+sends one throwaway route so the first real delegation is warm. `/health` would
+not work, because it never touches the model.
+
 ### Why subagents and not `set_model()`
 
 `ClaudeSDKClient.set_model()` exists, and it is the wrong lever. Prompt caches are

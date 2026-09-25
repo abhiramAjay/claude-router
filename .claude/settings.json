@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PYTHONPATH=\"$CLAUDE_PROJECT_DIR\" python3 -m claude_router.cc_hook --warm",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

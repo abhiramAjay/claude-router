@@ -25,11 +25,21 @@ prints nothing and exits 0, so Claude Code proceeds exactly as it would without
 it. Unlike RouterClient's fallback, it does not force Opus: here "no decision"
 means the CLI's own default, which is what the user had before installing this.
 
+Cold starts
+-----------
+After the sidecar has sat idle, its first forward pass takes over 5 s -- longer
+than the client waits -- so the first delegation of the day got no decision.
+`--warm`, run as a SessionStart hook, sends one throwaway route when a session
+opens so the first real one is warm. `/health` would not do: it never touches
+the model. The warm-up detaches, so session start is not held up, and waits up
+to 60 s itself. It counts as one route in the sidecar's /health stats.
+
 Every decision is appended to CLAUDE_ROUTER_HOOK_LOG (default
 ~/Library/Logs/laya-cc-hook.jsonl), so what it chose can be audited afterwards.
 """
 import json
 import os
+import subprocess
 import sys
 import time
 from typing import Any, Dict, Optional
@@ -86,7 +96,32 @@ def _log(record: Dict[str, Any]) -> None:
         pass
 
 
+WARM_PROMPT = "find where the config file is loaded"
+WARM_TIMEOUT = 60.0
+
+
+def warm(client: Any) -> None:
+    """One real forward pass, result discarded, to page the model back in."""
+    client.route(WARM_PROMPT)
+
+
 def main() -> int:
+    if sys.argv[1:] == ["--warm"]:
+        # Detach and return at once: SessionStart waits for the hook to exit.
+        # The child inherits PYTHONPATH, which is what makes `-m` resolve.
+        try:
+            subprocess.Popen([sys.executable, "-m", "claude_router.cc_hook", "--warm-now"],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
+        except OSError:
+            pass
+        return 0
+    if sys.argv[1:] == ["--warm-now"]:
+        try:
+            warm(RouterClient(timeout=WARM_TIMEOUT, on_error="raise"))
+        except Exception:
+            pass
+        return 0
     try:
         event = json.load(sys.stdin)
         # raise, not fallback: a dead sidecar must mean "no decision", not "Opus".

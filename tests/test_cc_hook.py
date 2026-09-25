@@ -71,10 +71,16 @@ def test_unknown_tier_is_left_alone():
     assert cc_hook.decide(event(prompt="p"), StubClient("fable")) is None
 
 
-def run_hook(stdin, url):
+def test_warm_runs_a_real_route():
+    client = StubClient()
+    cc_hook.warm(client)
+    assert client.prompts == [cc_hook.WARM_PROMPT]    # a forward pass, not /health
+
+
+def run_hook(stdin, url, *args):
     env = dict(os.environ, PYTHONPATH=ROOT, CLAUDE_ROUTER_URL=url,
                CLAUDE_ROUTER_HOOK_LOG=os.devnull)
-    return subprocess.run([sys.executable, "-m", "claude_router.cc_hook"], input=stdin,
+    return subprocess.run([sys.executable, "-m", "claude_router.cc_hook", *args], input=stdin,
                           capture_output=True, text=True, env=env, timeout=30)
 
 
@@ -86,4 +92,10 @@ def test_dead_sidecar_means_no_decision_not_opus():
 
 def test_garbage_stdin_is_harmless():
     r = run_hook("not json", "http://127.0.0.1:9")
+    assert r.returncode == 0 and r.stdout == ""
+
+
+@pytest.mark.parametrize("flag", ["--warm", "--warm-now"])
+def test_warm_is_silent_and_harmless_with_a_dead_sidecar(flag):
+    r = run_hook("", "http://127.0.0.1:9", flag)
     assert r.returncode == 0 and r.stdout == ""
