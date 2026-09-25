@@ -148,6 +148,24 @@ async for message in query(prompt=..., options=options):
 print(router.summary())      # what laya chose, and why
 ```
 
+### In the interactive CLI (no API key)
+
+The same routing works in the `claude` you type into, via a command hook, so it
+runs on your Claude Code login rather than `ANTHROPIC_API_KEY`. This repo's
+`.claude/settings.json` enables it for this project:
+
+```json
+{"hooks": {"PreToolUse": [{"matcher": "Agent|Task", "hooks": [{"type": "command", "timeout": 10,
+  "command": "PYTHONPATH=\"$CLAUDE_PROJECT_DIR\" python3 -m claude_router.cc_hook"}]}]}}
+```
+
+`claude_router/cc_hook.py` sets the Agent tool's `model` (haiku / sonnet / opus)
+and leaves `subagent_type` alone, so Explore, Plan and project agents keep their
+tools. It cannot set effort, which the CLI tool does not take per call, and it
+cannot route the main conversation, only what that conversation delegates. If the
+sidecar is down or slow (>5 s), the hook exits silently and Claude Code uses its
+own default, not Opus. Decisions are logged to `~/Library/Logs/laya-cc-hook.jsonl`.
+
 ### Why subagents and not `set_model()`
 
 `ClaudeSDKClient.set_model()` exists, and it is the wrong lever. Prompt caches are
