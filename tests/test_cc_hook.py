@@ -28,6 +28,7 @@ class StubClient:
 @pytest.fixture(autouse=True)
 def log_to_tmp(tmp_path, monkeypatch):
     monkeypatch.setattr(cc_hook, "LOG_PATH", str(tmp_path / "hook.jsonl"))
+    monkeypatch.setattr(cc_hook.pool, "POOL_DIR", str(tmp_path / "pool"))
     return tmp_path / "hook.jsonl"
 
 
@@ -79,7 +80,7 @@ def test_warm_runs_a_real_route():
 
 def run_hook(stdin, url, *args):
     env = dict(os.environ, PYTHONPATH=ROOT, CLAUDE_ROUTER_URL=url,
-               CLAUDE_ROUTER_HOOK_LOG=os.devnull)
+               CLAUDE_ROUTER_HOOK_LOG=os.devnull, CLAUDE_ROUTER_POOL="0")
     return subprocess.run([sys.executable, "-m", "claude_router.cc_hook", *args], input=stdin,
                           capture_output=True, text=True, env=env, timeout=30)
 

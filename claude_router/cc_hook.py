@@ -34,6 +34,14 @@ opens so the first real one is warm. `/health` would not do: it never touches
 the model. The warm-up detaches, so session start is not held up, and waits up
 to 60 s itself. It counts as one route in the sidecar's /health stats.
 
+Shared context
+--------------
+The same PreToolUse call also appends the session's context pool (`pool.py`)
+to the brief, after routing, so the router still judges the task and not the
+pasted context. `--record`, run on UserPromptSubmit, PostToolUse and
+SubagentStop, is what fills the pool. Injection does not depend on routing: a
+dead sidecar still gets the subagent its context.
+
 Every decision is appended to CLAUDE_ROUTER_HOOK_LOG (default
 ~/Library/Logs/laya-cc-hook.jsonl), so what it chose can be audited afterwards.
 """
@@ -44,6 +52,7 @@ import sys
 import time
 from typing import Any, Dict, Optional
 
+from . import pool
 from .client import RouterClient
 
 # `Agent` on current Claude Code, `Task` on older builds -- see agents.py.
@@ -60,28 +69,45 @@ LOG_PATH = os.environ.get("CLAUDE_ROUTER_HOOK_LOG",
 def decide(event: Dict[str, Any], client: Any) -> Optional[Dict[str, Any]]:
     """The hook's stdout for one PreToolUse event, or None to leave it alone.
 
-    `client.route` may raise; the caller treats that as "no decision".
+    Routes on the brief as Claude wrote it, then appends the session's context
+    pool. A router failure costs the model choice, not the context.
     """
     if event.get("tool_name") not in DELEGATION_TOOLS:
         return None
     tool_input = dict(event.get("tool_input") or {})
-    prompt = tool_input.get("prompt") or tool_input.get("description") or ""
-    if not prompt:
+    original = tool_input.get("prompt") or ""
+    task = pool.strip_injected(original) or tool_input.get("description") or ""
+    if not task:
         return None
 
-    route = client.route(prompt)
-    model = TIER_TO_MODEL.get(route.tier)
-    if model is None:
-        return None
-    _log({"description": tool_input.get("description", ""),
-          "subagent_type": tool_input.get("subagent_type"),
-          "requested_model": tool_input.get("model"), "chosen_model": model,
-          **route.to_dict()})
+    try:
+        route = client.route(task)
+    except Exception:
+        route = None               # no decision: the CLI keeps its own default
+    model = TIER_TO_MODEL.get(route.tier) if route else None
 
-    note = "laya: %s -> %s (%s)" % (tool_input.get("description") or "task", model, route.reason)
-    if tool_input.get("model") == model:
+    prompt = pool.inject(original, event.get("session_id")) if original else original
+    added = len(prompt) - len(original)
+    if model is None and not added:
+        return None
+
+    if route is not None:
+        _log({"description": tool_input.get("description", ""),
+              "subagent_type": tool_input.get("subagent_type"),
+              "requested_model": tool_input.get("model"), "chosen_model": model,
+              "context_chars": added, **route.to_dict()})
+
+    note = "laya: %s -> %s (%s)" % (tool_input.get("description") or "task",
+                                    model or "default model",
+                                    route.reason if route else "router unavailable")
+    if added:
+        note += " +%.1fk chars shared context" % (added / 1000)
+    changed = added > 0 or (model is not None and tool_input.get("model") != model)
+    if not changed:
         return {"systemMessage": note}
-    tool_input["model"] = model        # injected when absent, overridden when Claude chose
+    if model is not None:
+        tool_input["model"] = model    # injected when absent, overridden when Claude chose
+    tool_input["prompt"] = prompt
     # No permissionDecision: the call still goes through the user's normal
     # permission rules; only its input changes.
     return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "updatedInput": tool_input},
@@ -117,8 +143,16 @@ def main() -> int:
             pass
         return 0
     if sys.argv[1:] == ["--warm-now"]:
+        pool.prune()
         try:
             warm(RouterClient(timeout=WARM_TIMEOUT, on_error="raise"))
+        except Exception:
+            pass
+        return 0
+    if sys.argv[1:] == ["--record"]:
+        # Never print: stdout from UserPromptSubmit is added to Claude's context.
+        try:
+            pool.record(json.load(sys.stdin))
         except Exception:
             pass
         return 0

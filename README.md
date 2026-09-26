@@ -171,6 +171,30 @@ also run `cc_hook --warm` on SessionStart: it detaches (~40 ms to return) and
 sends one throwaway route so the first real delegation is warm. `/health` would
 not work, because it never touches the model.
 
+### Shared context pool
+
+A subagent starts with only its brief, so a task that depends on what the user
+said, or on what another agent found, is only as good as that brief.
+`claude_router/pool.py` keeps a per-session pool at `~/.claude/laya-pool/`: user
+messages (UserPromptSubmit), briefs and results (PostToolUse on `Agent`, plus
+SubagentStop for background agents), deduplicated. `cc_hook --record` fills it,
+and the routing hook appends it to every new brief *after* routing, so the router
+still judges the task and not the pasted context.
+
+The whole pool goes in, capped at ~12k chars: user messages always, then agent
+results newest first, with a note when older ones are dropped. Within a session
+that is small enough that including everything beats retrieving. laya retrieval
+is the next step for when the cap starts to bite, and it is unmeasured.
+
+Verified end to end: a second Explore agent whose brief omitted a value found by
+the first answered correctly, citing the first agent's result, and read only the
+one file it needed. `CLAUDE_ROUTER_POOL=0` turns it off; pools older than 7 days
+are pruned on SessionStart.
+
+Known gap: the main conversation is not told the pool exists, so it may doubt a
+subagent that cites earlier results. The orchestrator agent's instructions
+mention it; plain sessions do not.
+
 ### Why subagents and not `set_model()`
 
 `ClaudeSDKClient.set_model()` exists, and it is the wrong lever. Prompt caches are
