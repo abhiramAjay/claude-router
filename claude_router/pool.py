@@ -61,6 +61,19 @@ _HEADER = (
 )
 
 
+# Told to the main conversation at SessionStart. Without it, the main session
+# sees a subagent cite results its brief never mentioned and concludes the
+# subagent is making them up -- observed in the first end-to-end run.
+MAIN_SESSION_NOTE = (
+    "Shared subagent context is on in this setup. A hook appends a "
+    "<shared-session-context> section to every Agent brief, holding the user's "
+    "messages from this session and the results of earlier subagents. A subagent "
+    "can therefore know things its brief did not mention, and citing earlier "
+    "results is expected, not a sign it invented them. Still write complete "
+    "briefs: the section is capped and drops the oldest results first."
+)
+
+
 def _digest(text: str) -> str:
     return hashlib.sha256(text.strip().encode()).hexdigest()[:12]
 

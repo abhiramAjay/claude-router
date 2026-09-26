@@ -191,9 +191,10 @@ the first answered correctly, citing the first agent's result, and read only the
 one file it needed. `CLAUDE_ROUTER_POOL=0` turns it off; pools older than 7 days
 are pruned on SessionStart.
 
-Known gap: the main conversation is not told the pool exists, so it may doubt a
-subagent that cites earlier results. The orchestrator agent's instructions
-mention it; plain sessions do not.
+The main conversation is told the pool exists: the SessionStart hook adds a short
+note to its context. Without it, the first end-to-end run's main session told the
+user a subagent "can't see earlier parts of this session" and dismissed a correct
+citation of earlier results as made up.
 
 ### Why subagents and not `set_model()`
 

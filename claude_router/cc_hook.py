@@ -39,7 +39,8 @@ Shared context
 The same PreToolUse call also appends the session's context pool (`pool.py`)
 to the brief, after routing, so the router still judges the task and not the
 pasted context. `--record`, run on UserPromptSubmit, PostToolUse and
-SubagentStop, is what fills the pool. Injection does not depend on routing: a
+SubagentStop, is what fills the pool, and `--warm` tells the main session the
+pool exists, so it does not doubt a subagent that cites earlier results. Injection does not depend on routing: a
 dead sidecar still gets the subagent its context.
 
 Every decision is appended to CLAUDE_ROUTER_HOOK_LOG (default
@@ -133,6 +134,12 @@ def warm(client: Any) -> None:
 
 def main() -> int:
     if sys.argv[1:] == ["--warm"]:
+        # SessionStart output becomes context for the main session, which
+        # otherwise has no idea its subagents are being handed the pool.
+        if pool.ENABLED:
+            json.dump({"hookSpecificOutput": {"hookEventName": "SessionStart",
+                                              "additionalContext": pool.MAIN_SESSION_NOTE}},
+                      sys.stdout)
         # Detach and return at once: SessionStart waits for the hook to exit.
         # The child inherits PYTHONPATH, which is what makes `-m` resolve.
         try:

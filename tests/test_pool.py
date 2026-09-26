@@ -203,3 +203,19 @@ def test_record_subprocess_prints_nothing(isolated):
                            input=payload, capture_output=True, text=True, env=env, timeout=30)
         assert r.returncode == 0 and r.stdout == ""
     assert "hi" in open(os.path.join(isolated, "pool", SID + ".jsonl")).read()
+
+
+@pytest.mark.parametrize("enabled", ["1", "0"])
+def test_session_start_tells_the_main_session_about_the_pool(enabled, isolated):
+    env = dict(os.environ, PYTHONPATH=ROOT, CLAUDE_ROUTER_POOL=enabled,
+               CLAUDE_ROUTER_URL="http://127.0.0.1:9", CLAUDE_ROUTER_POOL_DIR=str(isolated / "p"))
+    r = subprocess.run([sys.executable, "-m", "claude_router.cc_hook", "--warm"],
+                       input='{"hook_event_name": "SessionStart", "source": "startup"}',
+                       capture_output=True, text=True, env=env, timeout=30)
+    assert r.returncode == 0
+    if enabled == "0":
+        assert r.stdout == ""            # no pool, so nothing to explain
+        return
+    out = json.loads(r.stdout)["hookSpecificOutput"]
+    assert out["hookEventName"] == "SessionStart"
+    assert pool.MARKER in out["additionalContext"]    # names the section it will see
