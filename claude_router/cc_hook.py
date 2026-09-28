@@ -46,10 +46,12 @@ dead sidecar still gets the subagent its context.
 Every decision is appended to CLAUDE_ROUTER_HOOK_LOG (default
 ~/Library/Logs/laya-cc-hook.jsonl), so what it chose can be audited afterwards.
 """
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Any, Dict, Optional
 
@@ -123,6 +125,63 @@ def _log(record: Dict[str, Any]) -> None:
         pass
 
 
+# The same hook can be registered twice -- globally, and by this repo's own
+# .claude/settings.json -- and Claude Code only merges identical commands, so
+# both copies fire for one event, in parallel. The first to claim the event
+# handles it; the other exits silently. Recording needs no claim: pool reads
+# deduplicate already.
+CLAIM_DIR = os.environ.get("CLAUDE_ROUTER_CLAIM_DIR",
+                           os.path.join(tempfile.gettempdir(), "claude-router-%d" % os.getuid()))
+# Both copies arrive within milliseconds. A claim older than this belongs to an
+# earlier event with the same key, such as a second /clear in one session.
+CLAIM_WINDOW = 10.0
+
+
+def claim(event: Dict[str, Any], kind: str) -> bool:
+    """True if this process should handle `event`. Fails open: any error, or
+    an event with no session to key on, means handle it."""
+    session = event.get("session_id")
+    if not session:
+        return True
+    ident = event.get("tool_use_id") or json.dumps(
+        [event.get("source"), event.get("tool_input")], sort_keys=True, default=str)
+    key = hashlib.sha256("\0".join((kind, session, ident)).encode()).hexdigest()[:24]
+    path = os.path.join(CLAIM_DIR, key)
+    try:
+        os.makedirs(CLAIM_DIR, mode=0o700, exist_ok=True)
+        os.close(os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
+        return True
+    except FileExistsError:
+        try:
+            if time.time() - os.stat(path).st_mtime <= CLAIM_WINDOW:
+                return False
+            os.utime(path)
+        except OSError:
+            pass
+        return True
+    except OSError:
+        return True
+
+
+def prune_claims(now: Optional[float] = None) -> None:
+    cutoff = (now or time.time()) - 3600
+    try:
+        for name in os.listdir(CLAIM_DIR):
+            path = os.path.join(CLAIM_DIR, name)
+            if os.stat(path).st_mtime < cutoff:
+                os.remove(path)
+    except OSError:
+        pass
+
+
+def _read_event() -> Dict[str, Any]:
+    try:
+        event = json.load(sys.stdin)
+    except Exception:
+        return {}
+    return event if isinstance(event, dict) else {}
+
+
 WARM_PROMPT = "find where the config file is loaded"
 WARM_TIMEOUT = 60.0
 
@@ -134,6 +193,8 @@ def warm(client: Any) -> None:
 
 def main() -> int:
     if sys.argv[1:] == ["--warm"]:
+        if not claim(_read_event(), "session"):
+            return 0
         # SessionStart output becomes context for the main session, which
         # otherwise has no idea its subagents are being handed the pool.
         if pool.ENABLED:
@@ -151,6 +212,7 @@ def main() -> int:
         return 0
     if sys.argv[1:] == ["--warm-now"]:
         pool.prune()
+        prune_claims()
         try:
             warm(RouterClient(timeout=WARM_TIMEOUT, on_error="raise"))
         except Exception:
@@ -165,6 +227,8 @@ def main() -> int:
         return 0
     try:
         event = json.load(sys.stdin)
+        if event.get("tool_name") in DELEGATION_TOOLS and not claim(event, "pre"):
+            return 0
         # raise, not fallback: a dead sidecar must mean "no decision", not "Opus".
         out = decide(event, RouterClient(on_error="raise"))
     except Exception:

@@ -155,6 +155,11 @@ pointing at your clone. The hook itself is standard library only, so any
 Only routing needs the `PreToolUse` hook. The other four power the shared
 context pool.
 
+If you register the hooks globally and also open this repo, its own
+`.claude/settings.json` registers them a second time. That's fine: the first copy
+of each hook to fire claims the event, and the second exits without doing
+anything.
+
 ### 4. Watch it work
 
 Ask Claude Code something it will delegate, then look at the decision log:
