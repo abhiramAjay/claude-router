@@ -43,5 +43,8 @@ claude_router = ["routing_head.joblib"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# eval_delegated.py lives at the repo root; plain `pytest` does not put it on
+# sys.path the way `python -m pytest` does.
+pythonpath = ["."]
 markers = ["slow: loads the laya checkpoint (~20s); needs the [server] extra"]
 addopts = "-q"
