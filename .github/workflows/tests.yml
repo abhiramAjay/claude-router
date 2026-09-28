@@ -1,0 +1,31 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # The fast suite: client, hook, pool, head wiring and corpus guards. No laya
+    # checkpoint, no network, no API key. The `slow` cases load the 800 MB model
+    # and are run locally.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: macos-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -e '.[dev,agents]'
+      - run: pytest -m 'not slow'
+      - name: shell scripts parse
+        run: for f in launchd/*.sh training/*.sh; do sh -n "$f" || exit 1; done

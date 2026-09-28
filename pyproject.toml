@@ -9,7 +9,7 @@ description = "Route each prompt to a Claude model by complexity, using laya as 
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Abhiram A" }]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["claude", "anthropic", "llm", "routing", "claude-code", "subagents"]
 classifiers = [
     "License :: OSI Approved :: MIT License",

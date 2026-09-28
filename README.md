@@ -1,5 +1,9 @@
 # claude-router
 
+[![tests](https://github.com/abhiramAjay/claude-router/actions/workflows/tests.yml/badge.svg)](https://github.com/abhiramAjay/claude-router/actions/workflows/tests.yml)
+[![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **Claude Code runs every subagent on the same model. claude-router picks the model
 per task, using a local classifier, before the subagent starts: Haiku for lookups,
 Sonnet for contained edits, Opus for design work.**
@@ -75,7 +79,7 @@ including why the baseline turned out to be mostly measuring prompt length.
 
 ## Setup
 
-**Requirements:** Python 3.9+, Claude Code 2.1+, about 2 GB of disk for the
+**Requirements:** Python 3.10+, Claude Code 2.1+, about 2 GB of disk for the
 model. The login agent is for macOS; on Linux, run the sidecar by hand or under
 systemd (see below).
 
@@ -331,7 +335,7 @@ this matters and covers the provider quirks.
 ## Development
 
 ```sh
-pip install -e '.[dev]'
+pip install -e '.[dev,agents]'   # the Agent SDK is needed by tests/test_agents.py
 pytest -m 'not slow'               # client, hook, pool, corpus: no model, no network
 pytest -m slow                     # labelled routing cases; needs '.[server,head]'
 ```
