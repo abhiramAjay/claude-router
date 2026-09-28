@@ -160,11 +160,17 @@ context pool.
 Ask Claude Code something it will delegate, then look at the decision log:
 
 ```sh
-tail -f ~/Library/Logs/laya-cc-hook.jsonl
+python3 examples/watch_routes.py
 ```
 
-Each line records the task description, the model chosen and the reason
-(for example `head: haiku p=0.91`). For a session that
+```
+14:02:11  haiku   Find sidecar default port             head: haiku p=1.00
+14:02:11  sonnet  Add --timeout flag to laya-routerd    head: sonnet p=0.92  +0.4k shared context
+14:02:12  opus    Design multi-machine routing          head: opus p=0.99  +0.4k shared context
+```
+
+Each line shows the task, the model chosen and the classifier's confidence. The
+raw log is `~/Library/Logs/laya-cc-hook.jsonl`. For a session that
 delegates everything, try the included coordinator agent:
 
 ```sh
