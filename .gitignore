@@ -8,5 +8,9 @@ venv/
 .pytest_cache/
 .DS_Store
 .idea/
-claude_router/routing_head.joblib
 training/logs/
+# provider keys for training/run_overnight.sh -- never commit these
+*.env
+.env*
+keys.env
+.claude/settings.local.json

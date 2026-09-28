@@ -1,0 +1,6 @@
+#!/bin/sh
+# Stop the routing sidecar and remove its login agent.
+LABEL="com.claude-router.laya-routerd"
+launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+rm -f "$HOME/Library/LaunchAgents/$LABEL.plist"
+echo "removed $LABEL"

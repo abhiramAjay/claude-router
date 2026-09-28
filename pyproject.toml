@@ -6,7 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "claude-router"
 version = "0.1.0"
 description = "Route each prompt to a Claude model by complexity, using laya as a local classifier"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Abhiram A" }]
 requires-python = ">=3.9"
+keywords = ["claude", "anthropic", "llm", "routing", "claude-code", "subagents"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS",
+]
 dependencies = []          # the client is standard library only -- on purpose
 
 [project.optional-dependencies]
@@ -26,6 +35,11 @@ laya-routerd = "claude_router.server:main"
 
 [tool.setuptools]
 packages = ["claude_router"]
+
+[tool.setuptools.package-data]
+# The trained routing head (13 KB). Without it the sidecar falls back to the
+# far weaker difficulty score.
+claude_router = ["routing_head.joblib"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

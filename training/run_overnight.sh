@@ -30,15 +30,17 @@
 
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PY="$HOME/.venvs/laya/bin/python"
-KEYS="${KEYS_ENV:-/private/tmp/claude-501/-Users-dev-IdeaProjects-claude-router/88366300-54cc-433c-a733-ff18ab6db560/scratchpad/keys.env}"
+PY="${PY:-$HOME/.venvs/laya/bin/python}"
+# Provider keys, one per line: GROQ_KEY=... HF_KEY=... GEMINI_KEY=... AION_KEY=...
+# training/keys.env is gitignored; point KEYS_ENV elsewhere to keep it out of the tree.
+KEYS="${KEYS_ENV:-$ROOT/training/keys.env}"
 TARGET="${1:-5000}"
 OUTDIR="$ROOT/training/seeded"
 LOGDIR="${LOGDIR:-$ROOT/training/logs}"
 CURVE="$ROOT/training/curve.tsv"
 SNAPSHOT_EVERY=1800          # seconds
 STALL_AFTER=600              # restart a provider whose log has been silent this long
-OLLAMA_BIN=/opt/homebrew/opt/ollama/bin/ollama
+OLLAMA_BIN="${OLLAMA_BIN:-$(command -v ollama || echo /opt/homebrew/opt/ollama/bin/ollama)}"
 
 mkdir -p "$OUTDIR" "$LOGDIR"
 
